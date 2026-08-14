@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # Keeps the actions in sync.yml current. Note this does NOT bump the pinned
+  # contrail version in that workflow — that's a plain `run:` command, not a
+  # dependency manifest, so upgrading contrail stays a deliberate edit you make.
+  #
+  # Delete this file if you'd rather not get the PRs.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore
+      include: scope

@@ -1,0 +1,52 @@
+name: Sync flight emissions
+
+on:
+  schedule:
+    # 15:37 UTC daily. Deliberately off the hour: scheduled runs on the hour
+    # queue behind everyone else's and get delayed. This is UTC and does not
+    # shift with BST/DST.
+    - cron: "37 15 * * *"
+  # Puts a "Run workflow" button in the Actions tab, so you can test without
+  # waiting for the schedule. The button only appears once this file is on your
+  # repository's default branch.
+  workflow_dispatch: {}
+
+permissions:
+  # Required. GITHUB_TOKEN has been read-only by default since February 2023,
+  # and without this the commit-back step fails with a 403.
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # Pinned to a release tag on purpose: never track main. Bumping this is a
+      # deliberate one-line edit you make when you're ready.
+      - name: Install contrail
+        run: pip install "contrail @ git+https://github.com/atdr/contrail.git@v0.1.0"
+
+      - name: Sync
+        env:
+          TRIPIT_ICAL_URL: ${{ secrets.TRIPIT_ICAL_URL }}
+          TIM_API_KEY: ${{ secrets.TIM_API_KEY }}
+        run: contrail sync --csv-path flight_emissions.csv
+
+      - name: Keepalive marker
+        # GitHub disables scheduled workflows after 60 days with no repository
+        # activity. A quiet stretch of travel could easily mean no new-flight
+        # commits for that long, so always touch a timestamp file.
+        run: date -u +"%Y-%m-%dT%H:%M:%SZ" > last_checked.txt
+
+      - name: Commit changes
+        run: |
+          git config user.name "contrail-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add flight_emissions.csv last_checked.txt
+          git diff --staged --quiet || git commit -m "Sync flight emissions"
+          git push
