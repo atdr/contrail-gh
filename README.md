@@ -52,14 +52,31 @@ by date, with **`emissions_kg_actual`** as the per-flight figure.
 There's deliberately no running-total column — the file is a record of your flights, not an
 analysis of them, so nothing in it goes stale when you edit a row and a backfilled old flight
 doesn't rewrite every row after it. The workflow log prints the current total on every run, and
-`awk -F, 'NR>1 && $16 != "" {t+=$16} END {print t" kg CO2e"}' flight_emissions.csv` gets it from
-the file.
+this gets it from the file:
+
+```
+awk -F, 'NR==1{for(i=1;i<=NF;i++)if($i=="emissions_kg_actual")c=i;next} $c!=""{t+=$c} END{printf "%.1f kg CO2e\n",t}' flight_emissions.csv
+```
 
 Also `last_checked.txt`, a timestamp touched on every run. It exists to guarantee repository
 activity: GitHub disables scheduled workflows after 60 days of inactivity, and a quiet stretch of
 travel could easily mean no new flights to commit for that long.
 
 Full column reference is in [contrail's README](https://github.com/atdr/contrail#csv-columns).
+
+## Changed and cancelled flights
+
+While a flight hasn't departed, contrail keeps it up to date: a retimed or
+rerouted flight is corrected, and it is re-priced on every run, since the exact
+figure depends on the aircraft and short-haul equipment changes right up to
+departure.
+
+If an upcoming flight disappears from the feed it is marked `cancelled` in the
+`status` column rather than deleted. Its emissions figures are kept — TIM will
+never price a past flight again — but it stops counting toward your total. If it
+comes back, so does the row.
+
+From the day after departure a row is frozen and only you can change it.
 
 ## Exact vs. route-average emissions
 
