@@ -46,8 +46,14 @@ After that it runs itself, daily.
 
 ## What you get
 
-`flight_emissions.csv`, committed back to your repo after every run. The headline column is
-**`cumulative_kg_actual`**: your running total, sorted by flight date.
+`flight_emissions.csv`, committed back to your repo after every run: one row per flight, sorted
+by date, with **`emissions_kg_actual`** as the per-flight figure.
+
+There's deliberately no running-total column — the file is a record of your flights, not an
+analysis of them, so nothing in it goes stale when you edit a row and a backfilled old flight
+doesn't rewrite every row after it. The workflow log prints the current total on every run, and
+`awk -F, 'NR>1 && $16 != "" {t+=$16} END {print t" kg CO2e"}' flight_emissions.csv` gets it from
+the file.
 
 Also `last_checked.txt`, a timestamp touched on every run. It exists to guarantee repository
 activity: GitHub disables scheduled workflows after 60 days of inactivity, and a quiet stretch of
@@ -144,8 +150,8 @@ carry over from a template.
 
 **Rows say `unparsed`.** contrail found something that looked like a flight but couldn't
 confidently read the carrier, flight number, or airports from it. Check the `raw_summary` column
-and fill the emissions in by hand if you want them counted — the cumulative total picks them up on
-the next run. If you see a pattern of these, it's worth
+and fill the emissions in by hand if you want them counted — the figure counts from the next run
+onwards. If you see a pattern of these, it's worth
 [opening an issue](https://github.com/atdr/contrail/issues) on contrail.
 
 **The workflow stopped running.** GitHub disables scheduled workflows after 60 days of no
