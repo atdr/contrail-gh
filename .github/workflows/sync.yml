@@ -48,5 +48,8 @@ jobs:
           git config user.name "contrail-bot"
           git config user.email "actions@users.noreply.github.com"
           git add flight_emissions.csv last_checked.txt
+          # The sidecar holds everything the emissions API returned; TIM
+          # will not answer for a flight once it has departed.
+          git add flight_emissions.raw.jsonl 2>/dev/null || true
           git diff --staged --quiet || git commit -m "Sync flight emissions"
           git push

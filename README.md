@@ -49,6 +49,12 @@ After that it runs itself, daily.
 `flight_emissions.csv`, committed back to your repo after every run: one row per flight, sorted
 by date, with **`emissions_kg_actual`** as the per-flight figure.
 
+Alongside it, `flight_emissions.raw.jsonl` keeps every response the emissions API
+gave in full — the well-to-tank/tank-to-wake split, load factors, distance, data
+provenance. TIM refuses to price a flight once it has departed, so whatever isn't
+captured while a flight is upcoming is gone for good. It only records an answer
+when it differs from the last one, so it grows when something changes, not daily.
+
 There's deliberately no running-total column — the file is a record of your flights, not an
 analysis of them, so nothing in it goes stale when you edit a row and a backfilled old flight
 doesn't rewrite every row after it. The workflow log prints the current total on every run, and
@@ -77,6 +83,15 @@ never price a past flight again — but it stops counting toward your total. If 
 comes back, so does the row.
 
 From the day after departure a row is frozen and only you can change it.
+
+## Don't bother timing your syncs
+
+TIM serves a pre-built dataset, identified by the `+dated` part of the
+`model_version` column, so a call an hour before departure returns exactly what a
+call that morning returns. Scheduling a run just before takeoff to catch a
+last-minute aircraft swap buys nothing — and GitHub's scheduler is best-effort
+anyway, routinely delayed and occasionally skipped. What matters is that a sync
+lands while the flight is still upcoming, which the daily run already does.
 
 ## Exact vs. route-average emissions
 
