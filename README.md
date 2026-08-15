@@ -14,11 +14,20 @@ no secrets, and contrail itself is installed from a pinned release tag.
 
 ### 1. Create your own repo from this template
 
-Click **Use this template → Create a new repository**, and **set it to Private**.
+Click **Use this template → Create a new repository**, then:
 
-Your flight history is personal, and this repo will accumulate all of it. A repo created from a
-template can be private even though the template is public — that's different from forking, where
-a fork of a public repo is forced public.
+- **Name it `my-contrail`.** Any name works, but the docs, the issue tracker and
+  `AGENTS.md` all use `my-contrail` as the example — so if you're `octocat`, you'll
+  end up with `octocat/my-contrail` and everything you read will line up.
+- **Set it to Private.** This is the important one.
+
+Your flight history is personal, and **your new repo** will accumulate all of it — every route and
+date you fly, plus the raw provider responses behind each figure. A repo created from a template
+can be private even though the template is public; that's different from forking, where a fork of
+a public repo is forced public.
+
+Don't fork this repo, and don't copy the files by hand. "Use this template" is what gives you a
+repo you can keep private.
 
 ### 2. Add your secrets — do this first
 
