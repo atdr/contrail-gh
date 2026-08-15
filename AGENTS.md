@@ -1,58 +1,93 @@
 # contrail-gh
 
-A GitHub **template repository**. Someone clicks "Use this template", makes their
-own **private** repo, adds two secrets, and gets a daily flight-emissions log
-committed back to it.
+Runs [contrail](https://github.com/atdr/contrail) on a schedule via GitHub
+Actions and commits a flight-emissions log back to the repository. This repo
+holds **no logic** — it installs contrail from a pinned release tag and runs it.
+Behaviour questions belong in contrail; this is scaffolding.
 
-This repo holds **no logic**. It installs [atdr/contrail](https://github.com/atdr/contrail)
-from a pinned release tag and runs it. Behaviour questions belong there; this repo
-is scaffolding.
+## First: work out which repo you are in
 
-## What's here
+This file ships **in the template and in every repo created from it**, so the
+rules differ depending on where you have landed. They are close to opposites in
+one place, so check before touching anything:
 
-```
-.github/workflows/sync.yml            the daily run
-.github/workflows/check-template.yml  guards the invariants below
-flight_emissions.csv                  header row only, never data
-README.md                             setup instructions for a derived repo
+```bash
+gh repo view --json nameWithOwner,isTemplate,visibility
 ```
 
-## Rules
+| | The template (`atdr/contrail-gh`) | An instance (e.g. `octocat/my-contrail`) |
+|---|---|---|
+| Visibility | public | **private** |
+| `flight_emissions.csv` | header row only | real flights, and it grows |
+| `flight_emissions.raw.jsonl` | must not exist | present once a sync has run |
+| Actions secrets | none | `TRIPIT_ICAL_URL`, `TIM_API_KEY` |
+| Purpose | the thing people copy | someone's actual travel record |
 
-**Never commit flight data.** This repo is public. `flight_emissions.csv` is the
-header row and nothing else, and `flight_emissions.raw.jsonl` must never appear
-at all. `check-template.yml` enforces both — but only when running in
-`atdr/contrail-gh`, since a derived repo legitimately has data in both.
+A quick heuristic if `gh` isn't available: more than one line in
+`flight_emissions.csv` means you are in an instance.
 
-**The header must match the contrail version `sync.yml` pins.** Not contrail's
-`main` — the pinned tag. Regenerate it after installing that version:
+## If you are in an instance
+
+**The data is the point. Never "clean up" the CSV or the raw log.** They are the
+product. Deleting rows, truncating to the header, or removing
+`flight_emissions.raw.jsonl` destroys travel history that mostly cannot be
+re-fetched — contrail's emissions provider will not price a flight once it has
+departed, and the calendar feed only carries recent trips.
+
+- Editing a row by hand is supported and expected: fill in emissions on an
+  `unparsed` row, or set `cabin_class_known`, and the next sync picks it up.
+- Both files must stay committed. If they stop appearing in commits, check the
+  `git add` line in `sync.yml`.
+- **Never make this repo public**, and never copy its contents into a public
+  one. The CSV is an itinerary; the raw log is worse.
+- Upgrading contrail means editing one line — the `@vX.Y.Z` pin in `sync.yml`.
+  Check [contrail's releases](https://github.com/atdr/contrail/releases) first.
+- Pulling template updates is manual and one file at a time; see "Staying up to
+  date" in the README. Re-apply your own pin afterwards.
+- `check-template.yml` deliberately does nothing here. Its checks assume a
+  header-only CSV and would fail against real data.
+
+## If you are in the template
+
+**Never commit flight data.** It is public. `flight_emissions.csv` is the header
+row and nothing else, and `flight_emissions.raw.jsonl` must not exist.
+`check-template.yml` enforces both, and runs only here.
+
+**The header must match the contrail version `sync.yml` pins** — the pinned tag,
+not contrail's `main`. Regenerate it after installing that version:
 
 ```bash
 python -c 'from contrail.storage.local_csv import CSV_FIELDS; print(",".join(CSV_FIELDS))' \
   > flight_emissions.csv
 ```
 
+If a schema change hasn't been released yet, regenerate the header in the same
+change that bumps the pin — not before, or the template ships a header no
+released contrail writes.
+
+**Remember every edit here lands in someone's private repo later**, including
+this file. Write instructions that still make sense there.
+
+## True in both
+
 **The version pin is deliberate.** `sync.yml` installs `contrail@vX.Y.Z` and must
-never track `main`: a change upstream would otherwise reach every derived repo
-unannounced. Bumping it is a one-line, opt-in edit — and a derived repo's owner
-may have pinned something older on purpose, which is why the "Staying up to date"
-section of the README tells them to re-apply their own pin after pulling this
-file.
+never track `main`: a change upstream would otherwise reach every instance
+unannounced. Bumping is opt-in, which is also why the README tells people to
+re-apply their own pin after pulling template updates.
 
 **`git add` in `sync.yml` must cover every file contrail writes.** Today:
 `flight_emissions.csv`, `flight_emissions.raw.jsonl`, `last_checked.txt`. A new
-output file that isn't added is silently lost on every run.
+output that isn't added is silently lost on every run.
 
 **`last_checked.txt` is load-bearing.** GitHub disables scheduled workflows after
-60 days of no repository activity, and a quiet stretch of travel can easily reach
-that with no new flights to commit. Don't remove the keepalive as redundant.
+60 days of no repository activity, and a quiet stretch of travel reaches that
+easily with no new flights to commit. It is not redundant.
 
 **`permissions: contents: write` is required.** `GITHUB_TOKEN` has been read-only
 by default since February 2023; without it the commit-back step 403s.
 
 ## When contrail changes
 
-Anything in [contrail's docs/contrail-gh.md](https://github.com/atdr/contrail/blob/main/docs/contrail-gh.md)
-that lists a schema or output change means this repo needs the same release:
-regenerate the header, bump the pin, and check the README still describes the
-columns accurately.
+[contrail's docs/contrail-gh.md](https://github.com/atdr/contrail/blob/main/docs/contrail-gh.md)
+lists what a schema or output change upstream obliges here: regenerate the
+header, bump the pin, check the README still describes the columns accurately.
