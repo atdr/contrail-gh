@@ -84,14 +84,16 @@ comes back, so does the row.
 
 From the day after departure a row is frozen and only you can change it.
 
-## Don't bother timing your syncs
+## Timing your syncs
 
-TIM serves a pre-built dataset, identified by the `+dated` part of the
-`model_version` column, so a call an hour before departure returns exactly what a
-call that morning returns. Scheduling a run just before takeoff to catch a
-last-minute aircraft swap buys nothing — and GitHub's scheduler is best-effort
-anyway, routinely delayed and occasionally skipped. What matters is that a sync
-lands while the flight is still upcoming, which the daily run already does.
+You don't need to. Every upcoming flight is re-priced on every run, so the daily
+sync already captures the best figure available before departure.
+
+Scheduling a run *just* before takeoff, to catch a last-minute aircraft change,
+is unlikely to help: TIM's responses carry a dataset stamp (the `+dated` part of
+`model_version`) that doesn't move daily, which suggests a late call returns what
+the morning's call returned. And GitHub's scheduler is best-effort — routinely
+delayed, occasionally skipped — so a precise time isn't available anyway.
 
 ## Exact vs. route-average emissions
 
