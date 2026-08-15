@@ -29,7 +29,7 @@ jobs:
       # Pinned to a release tag on purpose: never track main. Bumping this is a
       # deliberate one-line edit you make when you're ready.
       - name: Install contrail
-        run: pip install "contrail @ git+https://github.com/atdr/contrail.git@v0.1.0"
+        run: pip install "contrail @ git+https://github.com/atdr/contrail.git@v0.2.0"
 
       - name: Sync
         env:
