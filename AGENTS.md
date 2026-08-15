@@ -46,6 +46,7 @@ departed, and the calendar feed only carries recent trips.
   date" in the README. Re-apply your own pin afterwards.
 - `check-template.yml` deliberately does nothing here. Its checks assume a
   header-only CSV and would fail against real data.
+- `sync.yml` is the one that *does* run here. That is the whole point.
 
 ## If you are in the template
 
@@ -64,6 +65,19 @@ python -c 'from contrail.storage.local_csv import CSV_FIELDS; print(",".join(CSV
 If a schema change hasn't been released yet, regenerate the header in the same
 change that bumps the pin — not before, or the template ships a header no
 released contrail writes.
+
+**The two workflows are guarded in opposite directions, and both guards are
+load-bearing:**
+
+| Workflow | Guard | Runs in |
+|---|---|---|
+| `check-template.yml` | `if: github.repository == 'atdr/contrail-gh'` | the template only |
+| `sync.yml` | `if: github.repository != 'atdr/contrail-gh'` | instances only |
+
+Removing either produces a workflow that fails forever in the wrong repo: the
+checks assume a header-only CSV and would fail against real data, while the sync
+has no secrets and nothing to log here. Both key off the repository name, so an
+instance is simply "not the template" — no per-user configuration needed.
 
 **Remember every edit here lands in someone's private repo later**, including
 this file. Write instructions that still make sense there.

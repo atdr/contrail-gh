@@ -18,6 +18,11 @@ permissions:
 
 jobs:
   sync:
+    # The mirror of the guard in check-template.yml. This workflow is inert in
+    # the template itself, which has no secrets and no flight log to update —
+    # it would just fail on a schedule forever. It runs in the repo you created
+    # from the template, whose name differs.
+    if: github.repository != 'atdr/contrail-gh'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
