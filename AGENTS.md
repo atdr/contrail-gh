@@ -24,9 +24,16 @@ then `github`, above `origin`. In an instance that added the template under
 either name, every bare `gh` command — including `gh repo view` — answers for the
 **public template** instead. Believing it here is the worst case in this file:
 you would read `isTemplate: true`, apply the template's "the CSV is a header row
-and nothing else" rule, and truncate someone's real travel history. The README
-tells people to name that remote `template` for this reason, but don't rely on
-it; `origin` is always the repo you are standing in.
+and nothing else" rule, and truncate someone's real travel history.
+
+The README tells people to name that remote `template` for this reason, but the
+naming is not what makes this safe, so don't conclude `gh` is fine here once you
+see it. A `remote.<name>.gh-resolved` key — what `gh repo set-default` writes —
+overrides remote names outright, and `gh` needs the network and a valid token
+besides. The failure modes are what settle it: when git can't answer it exits
+non-zero with nothing, which lands you in the fallback below, while `gh` returns
+clean, confident JSON about the other repo. On the one decision where being
+confidently wrong destroys data, prefer the detector that fails loudly.
 
 | | The template (`atdr/contrail-gh`) | An instance (e.g. `octocat/my-contrail`) |
 |---|---|---|
