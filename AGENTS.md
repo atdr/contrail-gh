@@ -20,6 +20,7 @@ gh repo view --json nameWithOwner,isTemplate,visibility
 | Visibility | public | **private** |
 | `flight_emissions.csv` | header row only | real flights, and it grows |
 | `flight_emissions.raw.jsonl` | must not exist | present once a sync has run |
+| `flighty/` | empty of CSVs | the owner's exports, committed by hand |
 | Actions secrets | none | `TRIPIT_ICAL_URL`, `TIM_API_KEY` |
 | Purpose | the thing people copy | someone's actual travel record |
 
@@ -39,7 +40,11 @@ departed, and the calendar feed only carries recent trips.
 - Both files must stay committed. If they stop appearing in commits, check the
   `git add` line in `sync.yml`.
 - **Never make this repo public**, and never copy its contents into a public
-  one. The CSV is an itinerary; the raw log is worse.
+  one. The CSV is an itinerary; the raw log is worse; an export in `flighty/` is
+  the owner's entire flying history in one file.
+- Exports in `flighty/` are committed on purpose and are read by every sync.
+  Don't tidy them away. Re-exporting is safe — Flighty ids are stable, so a
+  re-export re-prices nothing.
 - Upgrading contrail means editing one line — the `@vX.Y.Z` pin in `sync.yml`.
   Check [contrail's releases](https://github.com/atdr/contrail/releases) first.
 - Pulling template updates is manual and one file at a time; see "Staying up to
@@ -51,8 +56,12 @@ departed, and the calendar feed only carries recent trips.
 ## If you are in the template
 
 **Never commit flight data.** It is public. `flight_emissions.csv` is the header
-row and nothing else, and `flight_emissions.raw.jsonl` must not exist.
-`check-template.yml` enforces both, and runs only here.
+row and nothing else, `flight_emissions.raw.jsonl` must not exist, and `flighty/`
+must hold no CSV. `check-template.yml` enforces all three, and runs only here.
+
+`flighty/` is the sharpest of them. A Flighty export is an entire travel history
+in one file, and unlike the log it is a file someone puts there by hand, so
+nothing else would catch it.
 
 **The header must match the contrail version `sync.yml` pins** — the pinned tag,
 not contrail's `main`. Regenerate it after installing that version:

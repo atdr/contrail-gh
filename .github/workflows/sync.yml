@@ -34,12 +34,18 @@ jobs:
       # Pinned to a release tag on purpose: never track main. Bumping this is a
       # deliberate one-line edit you make when you're ready.
       - name: Install contrail
-        run: pip install "contrail @ git+https://github.com/atdr/contrail.git@v0.2.0"
+        run: pip install "contrail @ git+https://github.com/atdr/contrail.git@v0.3.0"
 
       - name: Sync
         env:
           TRIPIT_ICAL_URL: ${{ secrets.TRIPIT_ICAL_URL }}
           TIM_API_KEY: ${{ secrets.TIM_API_KEY }}
+          # Flighty exports committed to flighty/, if you keep any. An empty or
+          # missing directory is an ordinary state, not an error — it warns and
+          # the TripIt feed carries the sync on its own. TripIt is listed first
+          # in contrail's env config, so it owns any row both describe and the
+          # export fills in blanks like the cabin actually flown.
+          FLIGHTY_CSV_PATH: flighty/
         run: contrail sync --csv-path flight_emissions.csv
 
       - name: Keepalive marker

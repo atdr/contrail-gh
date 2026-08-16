@@ -60,4 +60,16 @@ jobs:
             echo "provider responses for real flights."
             exit 1
           fi
-          echo "header-only, no raw log"
+
+          # The sharpest of the three. A Flighty export is an entire flight
+          # history in one file, and unlike the log it arrives by hand, so
+          # nothing else would catch it.
+          FOUND=$(find flighty -name '*.csv' 2>/dev/null)
+          if [ -n "$FOUND" ]; then
+            echo "flighty/ holds a CSV in the public template:"
+            echo "$FOUND"
+            echo "A Flighty export is someone's entire travel history. Exports belong"
+            echo "only in a private repo created from this one."
+            exit 1
+          fi
+          echo "header-only, no raw log, no exports"
