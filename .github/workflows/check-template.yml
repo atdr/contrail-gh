@@ -17,9 +17,57 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The export check below reads every commit, not just this tree.
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+
+      # Runs before the install so it fails fast and needs no network. The docs
+      # quote sync.yml's install line back to the reader, and a stale quote
+      # sends people to a release this template doesn't install — which is
+      # exactly how the README ended up two releases behind once already.
+      - name: The docs must quote the pin sync.yml actually uses
+        run: |
+          PIN=$(grep -o 'contrail\.git@v[0-9][0-9.]*' .github/workflows/sync.yml | head -1 | cut -d@ -f2)
+          if [ -z "$PIN" ]; then
+            echo "No contrail pin found in sync.yml. Has the install line changed shape?"
+            echo "This check and the one below both read it, so neither can work now."
+            exit 1
+          fi
+          echo "sync.yml pins $PIN"
+
+          STATUS=0
+          # -z because a path with a space would otherwise word-split into two
+          # names that don't exist, and the file would be skipped silently —
+          # a guard that passes by failing to look is worse than none.
+          while IFS= read -r -d '' f; do
+            # Never a symlink: CLAUDE.md points at AGENTS.md, and following it
+            # would report the same line twice.
+            if [ -L "$f" ]; then
+              continue
+            fi
+            # Compare each tag found, not the line it sits on. A line reading
+            # "upgrade from @v0.2.0 to @v0.3.0" contains the current pin and
+            # would pass a substring test while still naming a stale one.
+            while IFS= read -r tag; do
+              if [ "$tag" != "$PIN" ]; then
+                echo "  $f: quotes $tag"
+                STATUS=1
+              fi
+            done < <(grep -o 'contrail\.git@v[0-9][0-9.]*' "$f" | cut -d@ -f2 || true)
+          done < <(git ls-files -z '*.md')
+
+          if [ "$STATUS" -ne 0 ]; then
+            echo
+            echo "The lines above quote a contrail pin other than sync.yml's ${PIN}."
+            echo "Update them, or the docs point people at the wrong release."
+            echo "Write @vX.Y.Z where you mean the pin in general — only a real"
+            echo "tag is checked."
+            exit 1
+          fi
+          echo "every documented pin matches"
 
       - name: Install the contrail version this template pins
         run: |
@@ -60,4 +108,39 @@ jobs:
             echo "provider responses for real flights."
             exit 1
           fi
-          echo "header-only, no raw log"
+
+          # The sharpest of the three. A Flighty export is an entire flight
+          # history in one file, and unlike the log it arrives by hand, so
+          # nothing else would catch it.
+          #
+          # -iname because a file saved as .CSV leaks exactly as much, and
+          # `|| true` because find exits 1 when flighty/ is absent, which under
+          # `bash -e` would abort this step with an empty log and no reason.
+          FOUND=$(find flighty -iname '*.csv' 2>/dev/null || true)
+          if [ -n "$FOUND" ]; then
+            echo "flighty/ holds a CSV in the public template:"
+            echo "$FOUND"
+            echo "A Flighty export is someone's entire travel history. Exports belong"
+            echo "only in a private repo created from this one."
+            exit 1
+          fi
+          echo "header-only, no raw log, no exports in the tree"
+
+      # The check above sees one commit's worth of tree, so an export added in
+      # one commit and removed in the next passes it while staying in the
+      # history of a public repo forever. For this data class that is not
+      # caught, so look at every commit. Needs fetch-depth: 0 above.
+      - name: No export may ever have been committed here
+        run: |
+          LEAKED=$(git log --all --diff-filter=A --name-only --format= -- 'flighty/*' \
+                   | grep -i '\.csv$' | sort -u || true)
+          if [ -n "$LEAKED" ]; then
+            echo "A Flighty export exists in this repository's history:"
+            echo "$LEAKED"
+            echo
+            echo "Deleting it in a later commit does not help — the file is still"
+            echo "reachable in a public repo. It has to come out of the history,"
+            echo "and the owner should assume the itinerary is disclosed."
+            exit 1
+          fi
+          echo "no export in any commit"

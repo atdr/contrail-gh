@@ -53,6 +53,24 @@ come back as `typical_route_average` rather than `exact` — see below.
 
 After that it runs itself, daily.
 
+### 4. Optional: add a Flighty export
+
+If you use [Flighty](https://flightyapp.com), export your history (Settings → Export → Export as
+CSV) and commit the file to `flighty/`. The next sync picks it up.
+
+It's worth doing for two reasons. A TripIt feed only carries recent and upcoming trips, while an
+export is your whole flying history — so this is how you backfill years at once. And the export is
+the only source that records **the cabin you actually flew**; without it every row assumes economy,
+which understates a long-haul business seat by roughly four times.
+
+Your TripIt feed still owns any flight both describe. The export fills in blanks and leaves its own
+key in `also_seen_as`, the column that joins a row back to the seat, PNR and tail number that only
+Flighty holds. Keep the `FlightyExport-YYYY-MM-DD.csv` name: multiple exports are read newest
+first, and the newest wins where two disagree.
+
+Skip this entirely and nothing breaks — an empty `flighty/` is an ordinary state, and the sync runs
+on TripIt alone. See [`flighty/README.md`](flighty/README.md) for the detail.
+
 ## What you get
 
 `flight_emissions.csv`, committed back to your repo after every run: one row per flight, sorted
@@ -130,7 +148,7 @@ delayed. Change the `cron:` line if you'd rather it ran at another time.
 `sync.yml` pins a contrail release:
 
 ```yaml
-run: pip install "contrail @ git+https://github.com/atdr/contrail.git@v0.1.0"
+run: pip install "contrail @ git+https://github.com/atdr/contrail.git@v0.3.0"
 ```
 
 Bump that tag when you want a newer version. It's pinned rather than tracking `main` so a change
@@ -166,6 +184,11 @@ Files here fall into two groups. `.github/workflows/sync.yml` and
 `flight_emissions.csv` is yours — your real flight data — and should
 never be overwritten from upstream; `last_checked.txt` is regenerated
 every run and can be ignored either way.
+
+`flighty/` is the one directory holding both: its `README.md` is
+template-owned, while any `FlightyExport-*.csv` beside it is yours.
+Upstream ships no exports, so pulling can't delete one — but if you
+resolve conflicts by taking upstream wholesale, keep your exports.
 
 Pull just the workflow file rather than merging the whole branch:
 
