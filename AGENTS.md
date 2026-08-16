@@ -98,6 +98,12 @@ never track `main`: a change upstream would otherwise reach every instance
 unannounced. Bumping is opt-in, which is also why the README tells people to
 re-apply their own pin after pulling template updates.
 
+`sync.yml` is the only place that version is decided. The docs quote it back to
+the reader, so bumping it means updating any doc that spells the tag out — in the
+template `check-template.yml` fails the build if one disagrees, since a stale
+quote sends people to a release this template doesn't install. Write `@vX.Y.Z`
+where you mean the pin in general; only a real tag is checked.
+
 **`git add` in `sync.yml` must cover every file contrail writes.** Today:
 `flight_emissions.csv`, `flight_emissions.raw.jsonl`, `last_checked.txt`. A new
 output that isn't added is silently lost on every run.

@@ -21,6 +21,44 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Runs before the install so it fails fast and needs no network. The docs
+      # quote sync.yml's install line back to the reader, and a stale quote
+      # sends people to a release this template doesn't install — which is
+      # exactly how the README ended up two releases behind once already.
+      - name: The docs must quote the pin sync.yml actually uses
+        run: |
+          PIN=$(grep -o 'contrail\.git@v[0-9][0-9.]*' .github/workflows/sync.yml | head -1 | cut -d@ -f2)
+          if [ -z "$PIN" ]; then
+            echo "No contrail pin found in sync.yml. Has the install line changed shape?"
+            echo "This check and the one below both read it, so neither can work now."
+            exit 1
+          fi
+          echo "sync.yml pins $PIN"
+
+          STATUS=0
+          # Tracked markdown only, and never a symlink: CLAUDE.md points at
+          # AGENTS.md, and following it would report the same line twice.
+          for f in $(git ls-files '*.md'); do
+            [ -L "$f" ] && continue
+            while IFS= read -r hit; do
+              case "$hit" in
+                *"@${PIN}"*) ;;
+                *)
+                  echo "$f:$hit"
+                  STATUS=1
+                  ;;
+              esac
+            done < <(grep -n 'contrail\.git@v[0-9][0-9.]*' "$f" || true)
+          done
+
+          if [ "$STATUS" -ne 0 ]; then
+            echo
+            echo "The lines above quote a contrail pin other than sync.yml's ${PIN}."
+            echo "Update them, or the docs point people at the wrong release."
+            exit 1
+          fi
+          echo "every documented pin matches"
+
       - name: Install the contrail version this template pins
         run: |
           PIN=$(grep -o 'contrail\.git@v[0-9][0-9.]*' .github/workflows/sync.yml | head -1 | cut -d@ -f2)
