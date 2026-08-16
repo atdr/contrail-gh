@@ -41,4 +41,9 @@ number and much better than no row at all.
 
 **This directory must stay empty here.** An export is an entire travel history in
 one file, and this repo is public. `check-template.yml` fails the build if a CSV
-appears. In your own private repo, committing them is the whole point.
+appears in the tree, and separately if one appears in any commit — deleting it
+afterwards doesn't help, because the file stays reachable in the history.
+
+Treat that as a backstop, not a safety net: CI runs after a push, so anything it
+catches on a public branch should be assumed disclosed. In your own private repo,
+committing exports is the whole point.

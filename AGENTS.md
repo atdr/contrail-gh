@@ -61,7 +61,10 @@ must hold no CSV. `check-template.yml` enforces all three, and runs only here.
 
 `flighty/` is the sharpest of them. A Flighty export is an entire travel history
 in one file, and unlike the log it is a file someone puts there by hand, so
-nothing else would catch it.
+nothing else would catch it. It is checked twice — the tree, and every commit,
+since removing an export in a later commit leaves it in the history of a public
+repo. Both run after a push, so they are a backstop: an export that reaches a
+public branch should be assumed disclosed, not merely caught.
 
 **The header must match the contrail version `sync.yml` pins** — the pinned tag,
 not contrail's `main`. Regenerate it after installing that version:

@@ -185,6 +185,11 @@ Files here fall into two groups. `.github/workflows/sync.yml` and
 never be overwritten from upstream; `last_checked.txt` is regenerated
 every run and can be ignored either way.
 
+`flighty/` is the one directory holding both: its `README.md` is
+template-owned, while any `FlightyExport-*.csv` beside it is yours.
+Upstream ships no exports, so pulling can't delete one — but if you
+resolve conflicts by taking upstream wholesale, keep your exports.
+
 Pull just the workflow file rather than merging the whole branch:
 
     git checkout upstream/main -- .github/workflows/sync.yml
