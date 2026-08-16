@@ -171,40 +171,50 @@ here.
 
 **One-time setup**, right after creating your repo:
 
-    git remote add upstream https://github.com/atdr/contrail-gh.git
-    git fetch upstream
+    git remote add template https://github.com/atdr/contrail-gh.git
+    git fetch template
+
+**Call it `template`, not `upstream`.** `gh` picks which repo a command acts on
+by remote name, and it prefers `upstream` over `origin` — so with the
+conventional name, a bare `gh pr create` or `gh issue list` in your private repo
+quietly targets this **public** template instead. Any name `gh` doesn't rank
+leaves `origin` winning, and `template` also describes the relationship better:
+this isn't a fork, and there's nothing upstream of you.
 
 **To check for and pull in updates later:**
 
-    git fetch upstream
-    git diff upstream/main -- .github/workflows/sync.yml
+    git fetch template
+    git diff template/main -- .github/workflows/sync.yml
 
 Files here fall into two groups. `.github/workflows/sync.yml` and
-`README.md` are template-owned and safe to pull from upstream.
-`flight_emissions.csv` is yours — your real flight data — and should
-never be overwritten from upstream; `last_checked.txt` is regenerated
-every run and can be ignored either way.
+`README.md` are template-owned and safe to pull. `flight_emissions.csv`
+is yours — your real flight data — and should never be overwritten from
+the template; `last_checked.txt` is regenerated every run and can be
+ignored either way.
 
 `flighty/` is the one directory holding both: its `README.md` is
-template-owned, while any `FlightyExport-*.csv` beside it is yours.
-Upstream ships no exports, so pulling can't delete one — but if you
-resolve conflicts by taking upstream wholesale, keep your exports.
+template-owned, while any `FlightyExport-*.csv` beside it is yours. The
+template ships no exports, so pulling can't delete one — but if you
+resolve conflicts by taking the template wholesale, keep your exports.
 
 Pull just the workflow file rather than merging the whole branch:
 
-    git checkout upstream/main -- .github/workflows/sync.yml
+    git checkout template/main -- .github/workflows/sync.yml
     # review the diff and re-apply your own version pin (the "@vX.Y.Z" in
-    # the pip install line) if upstream's copy overwrote it, then:
+    # the pip install line) if the template's copy overwrote it, then:
     git add .github/workflows/sync.yml
     git commit -m "Update workflow from contrail-gh"
 
-A full `git merge upstream/main` is possible instead, but needs
+A full `git merge template/main` is possible instead, but needs
 `--allow-unrelated-histories` the first time, and will try to merge
 `flight_emissions.csv` too — which doesn't make sense, since your copy has
-real data and upstream's is just a header row. If you go this route,
+real data and the template's is just a header row. If you go this route,
 resolve that file by always keeping your own version
 (`git checkout --ours flight_emissions.csv`). Pulling the one file you
 actually want is simpler and avoids this entirely.
+
+Already added it as `upstream`? `git remote rename upstream template` is the
+whole fix.
 
 ## Troubleshooting
 

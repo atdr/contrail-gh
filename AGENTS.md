@@ -12,8 +12,17 @@ rules differ depending on where you have landed. They are close to opposites in
 one place, so check before touching anything:
 
 ```bash
-gh repo view --json nameWithOwner,isTemplate,visibility
+git remote get-url origin      # the authority: atdr/contrail-gh is the template
 ```
+
+**Ask git, not `gh`.** `gh` chooses a repo by remote *name* and ranks `upstream`
+above `origin`, so in an instance that added the template as `upstream`, every
+bare `gh` command — including `gh repo view` — answers for the **public
+template** instead. Believing it here is the worst case in this file: you would
+read `isTemplate: true`, apply the template's "the CSV is a header row and
+nothing else" rule, and truncate someone's real travel history. The README now
+tells people to name that remote `template` for this reason, but don't rely on
+it; `origin` is always the repo you are standing in.
 
 | | The template (`atdr/contrail-gh`) | An instance (e.g. `octocat/my-contrail`) |
 |---|---|---|
@@ -49,6 +58,9 @@ departed, and the calendar feed only carries recent trips.
   Check [contrail's releases](https://github.com/atdr/contrail/releases) first.
 - Pulling template updates is manual and one file at a time; see "Staying up to
   date" in the README. Re-apply your own pin afterwards.
+- The template remote is called `template`, not `upstream`, so that `gh` keeps
+  resolving to this repo rather than the public one. Don't "fix" the name, and
+  pass `--repo` if you ever see `gh` answer for `atdr/contrail-gh` here.
 - `check-template.yml` deliberately does nothing here. Its checks assume a
   header-only CSV and would fail against real data.
 - `sync.yml` is the one that *does* run here. That is the whole point.
