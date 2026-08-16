@@ -175,11 +175,14 @@ here.
     git fetch template
 
 **Call it `template`, not `upstream`.** `gh` picks which repo a command acts on
-by remote name, and it prefers `upstream` over `origin` — so with the
-conventional name, a bare `gh pr create` or `gh issue list` in your private repo
-quietly targets this **public** template instead. Any name `gh` doesn't rank
-leaves `origin` winning, and `template` also describes the relationship better:
-this isn't a fork, and there's nothing upstream of you.
+by remote name, and it ranks exactly three: `upstream`, then `github`, then
+`origin`. Give this remote either of the first two and a bare `gh pr create` or
+`gh issue create` in your private repo quietly targets this **public** template
+instead. Avoid those two names and `origin` wins. `template` also describes the
+relationship better: this isn't a fork, and there's nothing upstream of you.
+
+Already added it as `upstream` or `github`? See
+[Troubleshooting](#troubleshooting).
 
 **To check for and pull in updates later:**
 
@@ -213,10 +216,16 @@ resolve that file by always keeping your own version
 (`git checkout --ours flight_emissions.csv`). Pulling the one file you
 actually want is simpler and avoids this entirely.
 
-Already added it as `upstream`? `git remote rename upstream template` is the
-whole fix.
-
 ## Troubleshooting
+
+**`gh` commands here act on `atdr/contrail-gh` instead of my repo.** You named
+the template remote `upstream` or `github`, both of which `gh` ranks above
+`origin`. Rename it:
+
+    git remote rename upstream template     # or: github template
+
+Anything you already created with a bare `gh` command went to that public repo
+rather than this one, so it's worth a look before carrying on.
 
 **The first scheduled run failed.** Almost always missing secrets — see step 2. Secrets never
 carry over from a template.
