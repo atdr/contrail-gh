@@ -12,8 +12,28 @@ rules differ depending on where you have landed. They are close to opposites in
 one place, so check before touching anything:
 
 ```bash
-gh repo view --json nameWithOwner,isTemplate,visibility
+git remote get-url origin      # owner *and* name: only atdr/contrail-gh is the template
 ```
+
+Match the owner too. Any repo name is allowed for an instance, so
+`octocat/contrail-gh` is a perfectly legal private repo — matching on
+`contrail-gh` alone would read it as the template.
+
+**Ask git, not `gh`.** `gh` chooses a repo by remote *name*, ranking `upstream`,
+then `github`, above `origin`. In an instance that added the template under
+either name, every bare `gh` command — including `gh repo view` — answers for the
+**public template** instead. Believing it here is the worst case in this file:
+you would read `isTemplate: true`, apply the template's "the CSV is a header row
+and nothing else" rule, and truncate someone's real travel history.
+
+The README tells people to name that remote `template` for this reason, but the
+naming is not what makes this safe, so don't conclude `gh` is fine here once you
+see it. A `remote.<name>.gh-resolved` key — what `gh repo set-default` writes —
+overrides remote names outright, and `gh` needs the network and a valid token
+besides. The failure modes are what settle it: when git can't answer it exits
+non-zero with nothing, which lands you in the fallback below, while `gh` returns
+clean, confident JSON about the other repo. On the one decision where being
+confidently wrong destroys data, prefer the detector that fails loudly.
 
 | | The template (`atdr/contrail-gh`) | An instance (e.g. `octocat/my-contrail`) |
 |---|---|---|
@@ -24,8 +44,14 @@ gh repo view --json nameWithOwner,isTemplate,visibility
 | Actions secrets | none | `TRIPIT_ICAL_URL`, `TIM_API_KEY` |
 | Purpose | the thing people copy | someone's actual travel record |
 
-A quick heuristic if `gh` isn't available: more than one line in
-`flight_emissions.csv` means you are in an instance.
+**If there is no `origin` to ask** — a ZIP download, a checkout whose remote is
+named something else, the wrong working directory — then assume you are in an
+**instance** and touch no data. More than one line in `flight_emissions.csv`
+proves it is an instance, but a header-only file proves nothing either way: a
+private repo that hasn't run its first sync yet ships the identical header, and
+it may already hold a hand-committed export in `flighty/`, which is someone's
+entire flying history. Guessing "template" wrongly destroys that; guessing
+"instance" wrongly just means being too careful in a public repo.
 
 ## If you are in an instance
 
@@ -49,6 +75,10 @@ departed, and the calendar feed only carries recent trips.
   Check [contrail's releases](https://github.com/atdr/contrail/releases) first.
 - Pulling template updates is manual and one file at a time; see "Staying up to
   date" in the README. Re-apply your own pin afterwards.
+- The template remote should be called `template`, so that `gh` keeps resolving
+  to this repo rather than the public one. Don't rename it to `upstream` or
+  `github` — `gh` ranks both above `origin`. If you find one of those names here,
+  rename it, and pass `--repo` on every `gh` command until you have.
 - `check-template.yml` deliberately does nothing here. Its checks assume a
   header-only CSV and would fail against real data.
 - `sync.yml` is the one that *does* run here. That is the whole point.
