@@ -1,7 +1,11 @@
 # Flighty exports
 
-Drop Flighty CSV exports in this directory and commit them. The next sync reads
-every `*.csv` here, newest filename first.
+This file ships in the public template and in every repo created from it. Unless
+a line names a repo, it is addressed to **your own private repo**; the template's
+own copy of this directory is covered in the last section.
+
+In your own repo, drop Flighty CSV exports into this directory and commit them.
+The next sync reads every `*.csv` in the directory, newest filename first.
 
 This is optional. Leave the directory empty and contrail syncs from your TripIt
 feed alone.
@@ -37,13 +41,21 @@ route average rather than an exact figure. That isn't a downgrade: the emissions
 API won't quote a flight once it has flown, so a route average is the honest
 number and much better than no row at all.
 
-## In the public template
+## The public template's own copy
 
-**This directory must stay empty here.** An export is an entire travel history in
-one file, and this repo is public. `check-template.yml` fails the build if a CSV
-appears in the tree, and separately if one appears in any commit — deleting it
-afterwards doesn't help, because the file stays reachable in the history.
+Everything below is about `atdr/contrail-gh`, the public template. It is not an
+instruction for your repo — if you are reading this in your own private repo,
+there is nothing here for you to act on.
 
-Treat that as a backstop, not a safety net: CI runs after a push, so anything it
-catches on a public branch should be assumed disclosed. In your own private repo,
-committing exports is the whole point.
+**`atdr/contrail-gh` must never hold an export.** One is an entire travel history
+in a single file, and that repository is public. Its `check-template.yml` fails
+the build if a CSV appears in `flighty/`, and separately if one appears in any
+commit — deleting the file afterwards doesn't help, because it stays reachable in
+the history. That workflow is gated to the template by repository name and does
+nothing in a repo created from it.
+
+Treat those checks as a backstop rather than a safety net: CI runs after a push,
+so an export that reaches a public branch should be assumed disclosed.
+
+Committing exports to `flighty/` in your own private repo is the whole point of
+the directory, and none of the above argues against it.

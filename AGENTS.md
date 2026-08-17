@@ -85,9 +85,12 @@ departed, and the calendar feed only carries recent trips.
 
 ## If you are in the template
 
-**Never commit flight data.** It is public. `flight_emissions.csv` is the header
-row and nothing else, `flight_emissions.raw.jsonl` must not exist, and `flighty/`
-must hold no CSV. `check-template.yml` enforces all three, and runs only here.
+**`atdr/contrail-gh` must never hold flight data**, because it is public. In the
+template, and only there, `flight_emissions.csv` is the header row and nothing
+else, `flight_emissions.raw.jsonl` must not exist, and `flighty/` must hold no
+CSV. `check-template.yml` enforces all three and is gated to `atdr/contrail-gh`
+by repository name, so it does nothing in a repo created from the template —
+where all three files are the point.
 
 `flighty/` is the sharpest of them. A Flighty export is an entire travel history
 in one file, and unlike the log it is a file someone puts there by hand, so
@@ -121,8 +124,15 @@ checks assume a header-only CSV and would fail against real data, while the sync
 has no secrets and nothing to log here. Both key off the repository name, so an
 instance is simply "not the template" — no per-user configuration needed.
 
-**Remember every edit here lands in someone's private repo later**, including
-this file. Write instructions that still make sense there.
+**Every edit here lands in someone's private repo later**, including this file.
+Writing instructions that "still make sense there" is necessary and not
+sufficient: words like *here*, *this repo* and *this directory* rebind to
+wherever the file is being read, so a correctly scoped heading can still sit
+above a directive that inverts. Name the repo — `atdr/contrail-gh`, or "your own
+repo" — rather than pointing at it.
+
+Before editing any Markdown here, read
+[`.claude/skills/two-audience-docs`](.claude/skills/two-audience-docs/SKILL.md).
 
 ## True in both
 

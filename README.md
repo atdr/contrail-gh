@@ -189,11 +189,11 @@ Already added it as `upstream` or `github`? See
     git fetch template
     git diff template/main -- .github/workflows/sync.yml
 
-Files here fall into two groups. `.github/workflows/sync.yml` and
-`README.md` are template-owned and safe to pull. `flight_emissions.csv`
-is yours — your real flight data — and should never be overwritten from
-the template; `last_checked.txt` is regenerated every run and can be
-ignored either way.
+Files here fall into two groups. `.github/workflows/sync.yml`, `README.md`,
+`AGENTS.md` and `.claude/` are template-owned and safe to pull.
+`flight_emissions.csv` is yours — your real flight data — and should
+never be overwritten from the template; `last_checked.txt` is regenerated
+every run and can be ignored either way.
 
 `flighty/` is the one directory holding both: its `README.md` is
 template-owned, while any `FlightyExport-*.csv` beside it is yours. The
