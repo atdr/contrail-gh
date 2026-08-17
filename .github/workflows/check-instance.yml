@@ -1,10 +1,11 @@
 name: Check the sync still runs
 
 on:
+  # Pull requests only. There is nothing to check on a schedule — sync.yml
+  # covers the day to day — and a workflow_dispatch run would be a weaker
+  # check wearing the same name, since the data-loss steps below have no base
+  # commit to compare against outside a pull request and would be skipped.
   pull_request:
-  # The guard below means atdr/contrail-gh can never exercise this file, so a
-  # hand-run button is the only way to try it outside a pull request.
-  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -56,13 +57,13 @@ jobs:
           # than the sync does. check-template.yml holds the two files to that.
           FLIGHTY_CSV_PATH: flighty/
           # TIM_API_KEY is deliberately absent. --dry-run returns before it ever
-          # builds an emissions provider, so the key is unused — and leaving it
-          # out of this job makes it impossible for a pull request check to
-          # spend a resource that cannot be spent twice. The provider will not
-          # price a flight once it has departed, so a figure missed while the
-          # flight was still upcoming is gone for good.
+          # builds an emissions provider, so the key would go unused: handing it
+          # to this job would grant a secret to a step that cannot reach the
+          # API. Not pricing is also what keeps the check quick and off the
+          # emissions API entirely, which is the point of using --dry-run rather
+          # than a full sync against a scratch file.
           #
-          # This does mean nothing here proves the key still works. The
+          # It does mean nothing in this job proves the key still works. The
           # scheduled sync is what proves that.
         run: contrail sync --csv-path flight_emissions.csv --dry-run
 

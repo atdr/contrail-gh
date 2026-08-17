@@ -178,10 +178,10 @@ Two things it deliberately does not do:
 
 - **It never writes.** `--dry-run` makes no changes, and the workflow checks that
   afterwards. Running it against your real log is safe.
-- **It never calls the emissions API,** so the job isn't given `TIM_API_KEY` at all. That
-  matters more than it sounds: the Travel Impact Model won't quote a flight once it has
-  departed, so an exact figure is a one-shot resource and a pull request check has no
-  business spending one.
+- **It never calls the emissions API,** so the job isn't given `TIM_API_KEY` at all. A dry
+  run doesn't price anything, so the key would go unused — and skipping the API is what
+  keeps the check to a few seconds. It does mean the check can't tell you your key still
+  works; the scheduled sync is what tells you that.
 
 It also refuses a pull request that **deletes flight data** — a row gone from
 `flight_emissions.csv`, a deleted `flight_emissions.raw.jsonl`, or a deleted export in
@@ -222,7 +222,7 @@ Already added it as `upstream` or `github`? See
     git fetch template
     git diff template/main -- .github/workflows/
 
-Files here fall into two groups. Everything under `.github/workflows/`,
+The files fall into two groups. Everything under `.github/workflows/`,
 `README.md`, `AGENTS.md` and `.claude/` are template-owned and safe to pull.
 `flight_emissions.csv` is yours — your real flight data — and should
 never be overwritten from the template; `last_checked.txt` is regenerated

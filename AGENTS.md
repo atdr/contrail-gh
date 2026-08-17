@@ -85,10 +85,10 @@ departed, and the calendar feed only carries recent trips.
 - `check-instance.yml` runs in your own repo too, on every pull request: it
   dry-runs the sync against your feed, your exports and your log, so a change is
   known good before it merges rather than the next morning. It writes nothing
-  and never calls the emissions API — it is not given `TIM_API_KEY`, so it
-  cannot spend a figure that can only be asked for once. It also refuses a pull
-  request that deletes a row, the raw log or an export; label the pull request
-  `allow-data-loss` when that is genuinely what you mean.
+  and never calls the emissions API — a dry run doesn't price, so it isn't given
+  `TIM_API_KEY` at all, which keeps the check quick and off the API. It also
+  refuses a pull request that deletes a row, the raw log or an export; label the
+  pull request `allow-data-loss` when that is genuinely what you mean.
 
 ## If you are in the template
 
@@ -133,14 +133,18 @@ the sync and the pull request check have no secrets and nothing to log in
 `atdr/contrail-gh`. All three key off the repository name, so an instance is
 simply "not the template" — no per-user configuration needed.
 
-`check-instance.yml` is the one nothing here can try out, because its guard
-skips it in `atdr/contrail-gh` on every run. `check-template.yml` compensates
-with a static check: the file must exist, must still carry that guard, and must
-declare every `_URL` / `_PATH` environment variable `sync.yml` declares — or the
-pull request check inspects a different set of sources than the sync reads. It
-does *not* take `TIM_API_KEY`, and that omission is deliberate: a dry run never
-prices, and a check that cannot reach the emissions API cannot spend a figure
-that can only be asked for once.
+`check-instance.yml` is the one `atdr/contrail-gh` can never try out, because
+its guard skips it there on every run. `check-template.yml` compensates with a
+static check: the file must exist, must still carry that guard, and must declare
+every `_URL` / `_PATH` environment variable `sync.yml` declares — or the pull
+request check inspects a different set of sources than the sync reads. It does
+*not* take `TIM_API_KEY`, and that omission is deliberate: a dry run never
+prices, so the key would go unused and the check stays quick and off the
+emissions API.
+
+It is triggered by `pull_request` alone. A `workflow_dispatch` run would carry
+the same name while checking less — the data-loss steps have no base commit to
+compare against outside a pull request, and skip.
 
 **Every edit here lands in someone's private repo later**, including this file.
 Writing instructions that "still make sense there" is necessary and not

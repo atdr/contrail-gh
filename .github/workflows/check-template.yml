@@ -94,7 +94,8 @@ jobs:
           # sync reads it and the check doesn't, the check is inspecting a
           # different repo than the one the sync will write — which is exactly
           # how a new importer's data would go unchecked. TIM_API_KEY is not
-          # matched, and is deliberately absent there: a dry run never prices.
+          # matched, and is deliberately absent there: a dry run never prices,
+          # so the key would go unused.
           while IFS= read -r var; do
             if ! grep -qE "^[[:space:]]*${var}:" "$F"; then
               echo "sync.yml sets ${var} but $F does not, so the check reads different data."
