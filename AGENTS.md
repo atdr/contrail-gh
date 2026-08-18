@@ -82,6 +82,13 @@ departed, and the calendar feed only carries recent trips.
 - `check-template.yml` deliberately does nothing here. Its checks assume a
   header-only CSV and would fail against real data.
 - `sync.yml` is the one that *does* run here. That is the whole point.
+- `check-instance.yml` runs in your own repo too, on every pull request: it
+  dry-runs the sync against your feed, your exports and your log, so a change is
+  known good before it merges rather than the next morning. It writes nothing
+  and never calls the emissions API — a dry run doesn't price, so it isn't given
+  `TIM_API_KEY` at all, which keeps the check quick and off the API. It also
+  refuses a pull request that deletes a row, the raw log or an export; label the
+  pull request `allow-data-loss` when that is genuinely what you mean.
 
 ## If you are in the template
 
@@ -111,18 +118,33 @@ If a schema change hasn't been released yet, regenerate the header in the same
 change that bumps the pin — not before, or the template ships a header no
 released contrail writes.
 
-**The two workflows are guarded in opposite directions, and both guards are
+**The workflows are guarded by repository name, and every guard is
 load-bearing:**
 
 | Workflow | Guard | Runs in |
 |---|---|---|
 | `check-template.yml` | `if: github.repository == 'atdr/contrail-gh'` | the template only |
 | `sync.yml` | `if: github.repository != 'atdr/contrail-gh'` | instances only |
+| `check-instance.yml` | `if: github.repository != 'atdr/contrail-gh'` | instances only |
 
-Removing either produces a workflow that fails forever in the wrong repo: the
-checks assume a header-only CSV and would fail against real data, while the sync
-has no secrets and nothing to log here. Both key off the repository name, so an
-instance is simply "not the template" — no per-user configuration needed.
+Removing one produces a workflow that fails forever in the wrong repo: the
+template checks assume a header-only CSV and would fail against real data, while
+the sync and the pull request check have no secrets and nothing to log in
+`atdr/contrail-gh`. All three key off the repository name, so an instance is
+simply "not the template" — no per-user configuration needed.
+
+`check-instance.yml` is the one `atdr/contrail-gh` can never try out, because
+its guard skips it there on every run. `check-template.yml` compensates with a
+static check: the file must exist, must still carry that guard, and must declare
+every `_URL` / `_PATH` environment variable `sync.yml` declares — or the pull
+request check inspects a different set of sources than the sync reads. It does
+*not* take `TIM_API_KEY`, and that omission is deliberate: a dry run never
+prices, so the key would go unused and the check stays quick and off the
+emissions API.
+
+It is triggered by `pull_request` alone. A `workflow_dispatch` run would carry
+the same name while checking less — the data-loss steps have no base commit to
+compare against outside a pull request, and skip.
 
 **Every edit here lands in someone's private repo later**, including this file.
 Writing instructions that "still make sense there" is necessary and not

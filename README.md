@@ -159,6 +159,39 @@ Dependabot (`.github/dependabot.yml`) keeps the *actions* in the workflow curren
 **not** touch this pin — it's a plain shell command, not a dependency manifest. Upgrading contrail
 is always your deliberate edit.
 
+## Checking a change before you merge it
+
+Bumping the pin, adding an export, editing the workflow — those are the changes that can
+break a sync, and the scheduled run only tells you the next morning, once they've landed.
+So `check-instance.yml` runs on every pull request in **your own repo** and does the sync
+in advance:
+
+    contrail sync --csv-path flight_emissions.csv --dry-run
+
+It installs whatever version your branch's `sync.yml` pins, reads your feed and your
+exports, reconciles them against the log you already have, and prints what a real sync
+would do — new flights, matches across sources, anything it couldn't parse. A broken feed
+URL, an export contrail can't read, or a pin bumped across a change that doesn't suit
+your data all fail the pull request instead of the next morning's run.
+
+Two things it deliberately does not do:
+
+- **It never writes.** `--dry-run` makes no changes, and the workflow checks that
+  afterwards. Running it against your real log is safe.
+- **It never calls the emissions API,** so the job isn't given `TIM_API_KEY` at all. A dry
+  run doesn't price anything, so the key would go unused — and skipping the API is what
+  keeps the check to a few seconds. It does mean the check can't tell you your key still
+  works; the scheduled sync is what tells you that.
+
+It also refuses a pull request that **deletes flight data** — a row gone from
+`flight_emissions.csv`, a deleted `flight_emissions.raw.jsonl`, or a deleted export in
+`flighty/`. Editing a row in place is fine and expected; deleting one throws away a
+figure that usually can't be fetched again. When a deletion really is what you mean, add
+the label `allow-data-loss` to the pull request.
+
+The job is skipped in `atdr/contrail-gh`, which has no feed, no secrets and no log to
+check.
+
 ## Staying up to date
 
 This repo was created from the [atdr/contrail-gh](https://github.com/atdr/contrail-gh)
@@ -187,10 +220,10 @@ Already added it as `upstream` or `github`? See
 **To check for and pull in updates later:**
 
     git fetch template
-    git diff template/main -- .github/workflows/sync.yml
+    git diff template/main -- .github/workflows/
 
-Files here fall into two groups. `.github/workflows/sync.yml`, `README.md`,
-`AGENTS.md` and `.claude/` are template-owned and safe to pull.
+The files fall into two groups. Everything under `.github/workflows/`,
+`README.md`, `AGENTS.md` and `.claude/` are template-owned and safe to pull.
 `flight_emissions.csv` is yours — your real flight data — and should
 never be overwritten from the template; `last_checked.txt` is regenerated
 every run and can be ignored either way.
@@ -200,13 +233,17 @@ template-owned, while any `FlightyExport-*.csv` beside it is yours. The
 template ships no exports, so pulling can't delete one — but if you
 resolve conflicts by taking the template wholesale, keep your exports.
 
-Pull just the workflow file rather than merging the whole branch:
+Pull just the workflow files rather than merging the whole branch:
 
-    git checkout template/main -- .github/workflows/sync.yml
+    git checkout template/main -- .github/workflows/
     # review the diff and re-apply your own version pin (the "@vX.Y.Z" in
-    # the pip install line) if the template's copy overwrote it, then:
-    git add .github/workflows/sync.yml
-    git commit -m "Update workflow from contrail-gh"
+    # sync.yml's pip install line) if the template's copy overwrote it, then:
+    git add .github/workflows/
+    git commit -m "Update workflows from contrail-gh"
+
+`sync.yml` is the only one carrying anything of yours. `check-instance.yml` reads
+the pin out of `sync.yml` rather than repeating it, and `check-template.yml` does
+nothing outside `atdr/contrail-gh` — so neither needs re-editing after a pull.
 
 A full `git merge template/main` is possible instead, but needs
 `--allow-unrelated-histories` the first time, and will try to merge
@@ -238,6 +275,11 @@ confidently read the carrier, flight number, or airports from it. Check the `raw
 and fill the emissions in by hand if you want them counted — the figure counts from the next run
 onwards. If you see a pattern of these, it's worth
 [opening an issue](https://github.com/atdr/contrail/issues) on contrail.
+
+**A pull request fails on "must not delete flight data".** It removes a row, the raw log,
+or a `flighty/` export. Usually that's a merge or a rebase gone sideways rather than an
+intention, so check the diff first. If you did mean it — replacing a superseded export,
+say — add the label `allow-data-loss` to the pull request and re-run the check.
 
 **The workflow stopped running.** GitHub disables scheduled workflows after 60 days of no
 repository activity. `last_checked.txt` exists to prevent this, but if it happens, re-enable the

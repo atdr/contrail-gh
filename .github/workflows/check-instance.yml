@@ -1,0 +1,141 @@
+name: Check the sync still runs
+
+on:
+  # Pull requests only. There is nothing to check on a schedule — sync.yml
+  # covers the day to day — and a workflow_dispatch run would be a weaker
+  # check wearing the same name, since the data-loss steps below have no base
+  # commit to compare against outside a pull request and would be skipped.
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # The same guard as sync.yml, and the mirror of check-template.yml's. This
+    # checks a repo created from the template, against that repo's own flight
+    # log and secrets. atdr/contrail-gh has neither, so the job is skipped there
+    # and shows as a skipped run rather than a failing one.
+    if: github.repository != 'atdr/contrail-gh'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The data-loss guard below reads the pull request's base commit, not
+          # just the tree being checked.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # Read the pin out of sync.yml rather than spelling it out again: that
+      # file is the only place the version is decided. Writing a tag here would
+      # also be backwards on the change that matters most — a pull request that
+      # bumps the pin would be checked against the release it is moving away
+      # from.
+      - name: Install the contrail version sync.yml pins
+        run: |
+          PIN=$(grep -o 'contrail\.git@v[0-9][0-9.]*' .github/workflows/sync.yml | head -1 | cut -d@ -f2)
+          if [ -z "$PIN" ]; then
+            echo "No contrail pin found in sync.yml. Has the install line changed shape?"
+            echo "check-template.yml reads it the same way, so neither can work now."
+            exit 1
+          fi
+          echo "sync.yml pins $PIN"
+          pip install "contrail @ git+https://github.com/atdr/contrail.git@${PIN}"
+
+      # The point of the whole workflow: parse every source this repo is
+      # configured with, reconcile against the log it already has, and report.
+      # A broken feed URL, an export contrail cannot read, a pin bumped across a
+      # change that does not suit this repo's data — all of them fail here
+      # instead of in tomorrow morning's scheduled sync.
+      - name: Dry run the sync
+        env:
+          TRIPIT_ICAL_URL: ${{ secrets.TRIPIT_ICAL_URL }}
+          # Must match sync.yml, or this check reads a different set of sources
+          # than the sync does. check-template.yml holds the two files to that.
+          FLIGHTY_CSV_PATH: flighty/
+          # TIM_API_KEY is deliberately absent. --dry-run returns before it ever
+          # builds an emissions provider, so the key would go unused: handing it
+          # to this job would grant a secret to a step that cannot reach the
+          # API. Not pricing is also what keeps the check quick and off the
+          # emissions API entirely, which is the point of using --dry-run rather
+          # than a full sync against a scratch file.
+          #
+          # It does mean nothing in this job proves the key still works. The
+          # scheduled sync is what proves that.
+        run: contrail sync --csv-path flight_emissions.csv --dry-run
+
+      - name: The dry run must not have written anything
+        # --dry-run promises this, and it is the property that makes running the
+        # check against a repo's real flight log acceptable at all.
+        run: git diff --exit-code
+
+      # The mirror of check-template.yml's "must never hold real flight data".
+      # The risk runs the other way in a repo created from the template: the log
+      # and the exports are the product, and most of what they hold cannot be
+      # fetched again. A pull request that shrinks the log is far more likely to
+      # be a mistake than an intention.
+      #
+      # Add the label `allow-data-loss` to the pull request when it is an
+      # intention — replacing a superseded export, say.
+      - name: A pull request must not delete flight data
+        if: >-
+          github.event_name == 'pull_request' &&
+          !contains(github.event.pull_request.labels.*.name, 'allow-data-loss')
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Renames are detected and reported as R, not D, so renaming an export
+          # is not treated as losing one.
+          DELETED=$(git diff --name-only --diff-filter=D "$BASE" HEAD || true)
+          LOST=$(printf '%s\n' "$DELETED" \
+                 | grep -Ei '^flight_emissions\.(csv|raw\.jsonl)$|^flighty/.*\.csv$' || true)
+          if [ -n "$LOST" ]; then
+            echo "This pull request deletes flight data:"
+            echo "$LOST"
+            echo
+            echo "The log and the raw responses behind it mostly cannot be re-fetched, and"
+            echo "an export is a whole flying history in one file. If the deletion is"
+            echo "deliberate, label the pull request 'allow-data-loss'."
+            exit 1
+          fi
+          echo "no flight data deleted"
+
+      - name: A pull request must not shrink the flight log
+        if: >-
+          github.event_name == 'pull_request' &&
+          !contains(github.event.pull_request.labels.*.name, 'allow-data-loss')
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git show "$BASE:flight_emissions.csv" > "$RUNNER_TEMP/base.csv" 2>/dev/null \
+            || : > "$RUNNER_TEMP/base.csv"
+          python - <<'PY'
+          import csv, os, sys
+
+          def rows(path):
+              # csv.reader, not `wc -l`: a row can carry an embedded newline —
+              # an unparsed event stores its source text in raw_summary, and a
+              # hand-edited row can too. Counting lines would read one row as
+              # several and let a real deletion through.
+              with open(path, newline="") as f:
+                  return max(sum(1 for _ in csv.reader(f)) - 1, 0)
+
+          base = rows(os.path.join(os.environ["RUNNER_TEMP"], "base.csv"))
+          head = rows("flight_emissions.csv")
+
+          if head < base:
+              print(f"flight_emissions.csv loses {base - head} row(s): {base} -> {head}.")
+              print()
+              print("Every row is a flight that was flown or booked, and the emissions")
+              print("provider will not price a departed flight again — so a row removed")
+              print("here is a figure that cannot be recovered. Editing a row in place is")
+              print("fine and expected; deleting one is not.")
+              print()
+              print("If the removal is deliberate, label the pull request 'allow-data-loss'.")
+              sys.exit(1)
+
+          print(f"flight_emissions.csv: {base} -> {head} row(s)")
+          PY
