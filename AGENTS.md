@@ -19,7 +19,7 @@ Match the owner too. Any repo name is allowed for an instance, so
 `octocat/contrail-gh` is a perfectly legal private repo — matching on
 `contrail-gh` alone would read it as the template.
 
-**Ask git, not `gh`.** `gh` chooses a repo by remote *name*, ranking `upstream`,
+**Ask git, not `gh`.** `gh` chooses a repo by remote _name_, ranking `upstream`,
 then `github`, above `origin`. In an instance that added the template under
 either name, every bare `gh` command — including `gh repo view` — answers for the
 **public template** instead. Believing it here is the worst case in this file:
@@ -35,14 +35,14 @@ non-zero with nothing, which lands you in the fallback below, while `gh` returns
 clean, confident JSON about the other repo. On the one decision where being
 confidently wrong destroys data, prefer the detector that fails loudly.
 
-| | The template (`atdr/contrail-gh`) | An instance (e.g. `octocat/my-contrail`) |
-|---|---|---|
-| Visibility | public | **private** |
-| `flight_emissions.csv` | header row only | real flights, and it grows |
-| `flight_emissions.raw.jsonl` | must not exist | present once a sync has run |
-| `flighty/` | empty of CSVs | the owner's exports, committed by hand |
-| Actions secrets | none | `TRIPIT_ICAL_URL`, `TIM_API_KEY` |
-| Purpose | the thing people copy | someone's actual travel record |
+|                              | The template (`atdr/contrail-gh`) | An instance (e.g. `octocat/my-contrail`) |
+| ---------------------------- | --------------------------------- | ---------------------------------------- |
+| Visibility                   | public                            | **private**                              |
+| `flight_emissions.csv`       | header row only                   | real flights, and it grows               |
+| `flight_emissions.raw.jsonl` | must not exist                    | present once a sync has run              |
+| `flighty/`                   | empty of CSVs                     | the owner's exports, committed by hand   |
+| Actions secrets              | none                              | `TRIPIT_ICAL_URL`, `TIM_API_KEY`         |
+| Purpose                      | the thing people copy             | someone's actual travel record           |
 
 **If there is no `origin` to ask** — a ZIP download, a checkout whose remote is
 named something else, the wrong working directory — then assume you are in an
@@ -81,7 +81,7 @@ departed, and the calendar feed only carries recent trips.
   rename it, and pass `--repo` on every `gh` command until you have.
 - `check-template.yml` deliberately does nothing here. Its checks assume a
   header-only CSV and would fail against real data.
-- `sync.yml` is the one that *does* run here. That is the whole point.
+- `sync.yml` is the one that _does_ run here. That is the whole point.
 - `check-instance.yml` runs in your own repo too, on every pull request: it
   dry-runs the sync against your feed, your exports and your log, so a change is
   known good before it merges rather than the next morning. It writes nothing
@@ -121,12 +121,12 @@ released contrail writes.
 **The workflows are guarded by repository name, and every guard is
 load-bearing:**
 
-| Workflow | Guard | Runs in |
-|---|---|---|
-| `check-template.yml` | `if: github.repository == 'atdr/contrail-gh'` | the template only |
-| `sync.yml` | `if: github.repository != 'atdr/contrail-gh'` | instances only |
-| `check-instance.yml` | `if: github.repository != 'atdr/contrail-gh'` | instances only |
-| `markdown.yml` | none — it is `workflow_call` only | wherever it is called |
+| Workflow             | Guard                                         | Runs in               |
+| -------------------- | --------------------------------------------- | --------------------- |
+| `check-template.yml` | `if: github.repository == 'atdr/contrail-gh'` | the template only     |
+| `sync.yml`           | `if: github.repository != 'atdr/contrail-gh'` | instances only        |
+| `check-instance.yml` | `if: github.repository != 'atdr/contrail-gh'` | instances only        |
+| `markdown.yml`       | none — it is `workflow_call` only             | wherever it is called |
 
 Removing one produces a workflow that fails forever in the wrong repo: the
 template checks assume a header-only CSV and would fail against real data, while
@@ -145,7 +145,7 @@ its guard skips it there on every run. `check-template.yml` compensates with a
 static check: the file must exist, must still carry that guard, and must declare
 every `_URL` / `_PATH` environment variable `sync.yml` declares — or the pull
 request check inspects a different set of sources than the sync reads. It does
-*not* take `TIM_API_KEY`, and that omission is deliberate: a dry run never
+_not_ take `TIM_API_KEY`, and that omission is deliberate: a dry run never
 prices, so the key would go unused and the check stays quick and off the
 emissions API.
 
@@ -162,7 +162,7 @@ compare against outside a pull request, and skip.
 
 **Every edit here lands in someone's private repo later**, including this file.
 Writing instructions that "still make sense there" is necessary and not
-sufficient: words like *here*, *this repo* and *this directory* rebind to
+sufficient: words like _here_, _this repo_ and _this directory_ rebind to
 wherever the file is being read, so a correctly scoped heading can still sit
 above a directive that inverts. Name the repo — `atdr/contrail-gh`, or "your own
 repo" — rather than pointing at it.

@@ -125,7 +125,7 @@ From the day after departure a row is frozen and only you can change it.
 You don't need to. Every upcoming flight is re-priced on every run, so the daily
 sync already captures the best figure available before departure.
 
-Scheduling a run *just* before takeoff, to catch a last-minute aircraft change,
+Scheduling a run _just_ before takeoff, to catch a last-minute aircraft change,
 is unlikely to help: TIM's responses carry a dataset stamp (the `+dated` part of
 `model_version`) that doesn't move daily, which suggests a late call returns what
 the morning's call returned. And GitHub's scheduler is best-effort — routinely
@@ -164,7 +164,7 @@ Bump that tag when you want a newer version. It's pinned rather than tracking `m
 upstream can never surprise a working setup. See
 [contrail's releases](https://github.com/atdr/contrail/releases) for what's changed.
 
-Dependabot (`.github/dependabot.yml`) keeps the *actions* in the workflow current, but it will
+Dependabot (`.github/dependabot.yml`) keeps the _actions_ in the workflow current, but it will
 **not** touch this pin — it's a plain shell command, not a dependency manifest. Upgrading contrail
 is always your deliberate edit.
 
@@ -209,7 +209,7 @@ This repo was created from the [atdr/contrail-gh](https://github.com/atdr/contra
 template. Unlike a fork, it has no ongoing link back to the template, so
 there's no automatic way to pull in future changes — you set this up
 once, yourself. This should rarely matter: contrail-gh's workflow and
-README change infrequently, and most contrail *upgrades* only need you to
+README change infrequently, and most contrail _upgrades_ only need you to
 bump the version tag in `.github/workflows/sync.yml`, not touch anything
 here.
 
