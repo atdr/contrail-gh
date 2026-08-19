@@ -109,6 +109,46 @@ jobs:
           fi
           echo "check-instance.yml is gated and reads what sync.yml reads"
 
+      # markdown.yml is called by both check-template.yml and check-instance.yml
+      # so that the template and every repo created from it check their docs the
+      # same way. The call from check-instance.yml is the half that can never be
+      # seen from here — its guard skips it in atdr/contrail-gh — so drop either
+      # call and the two sides silently diverge, with nothing failing.
+      - name: markdown.yml must exist, and be called by both checks
+        run: |
+          F=.github/workflows/markdown.yml
+          if [ ! -f "$F" ]; then
+            echo "$F is missing. Both check-template.yml and check-instance.yml"
+            echo "call it, so neither can run without it."
+            exit 1
+          fi
+
+          STATUS=0
+          for CALLER in check-template check-instance; do
+            if ! grep -qF 'uses: ./.github/workflows/markdown.yml' \
+                 ".github/workflows/${CALLER}.yml"; then
+              echo "${CALLER}.yml no longer calls markdown.yml, so it no longer"
+              echo "checks its Markdown. Restore the job or delete markdown.yml"
+              echo "and the other call with it."
+              STATUS=1
+            fi
+          done
+
+          # The configuration ships beside the workflow and is useless without
+          # it: an instance that pulled markdown.yml alone would lint against
+          # markdownlint's defaults rather than these settings.
+          for CONF in .markdownlint-cli2.yaml .prettierrc.json .prettierignore; do
+            if [ ! -f "$CONF" ]; then
+              echo "$CONF is missing, so markdown.yml would run on defaults."
+              STATUS=1
+            fi
+          done
+
+          if [ "$STATUS" -ne 0 ]; then
+            exit 1
+          fi
+          echo "markdown.yml exists, is called by both checks, and has its config"
+
       - name: Install the contrail version this template pins
         run: |
           PIN=$(grep -o 'contrail\.git@v[0-9][0-9.]*' .github/workflows/sync.yml | head -1 | cut -d@ -f2)
@@ -184,3 +224,9 @@ jobs:
             exit 1
           fi
           echo "no export in any commit"
+
+  # Defined in markdown.yml and called from check-instance.yml too, so the
+  # template and every repo created from it check their docs the same way.
+  markdown:
+    if: github.repository == 'atdr/contrail-gh'
+    uses: ./.github/workflows/markdown.yml

@@ -36,10 +36,19 @@ will fail without them.
 
 Go to **Settings → Secrets and variables → Actions → New repository secret** and add both:
 
-| Secret | Where to get it |
-|---|---|
-| `TRIPIT_ICAL_URL` | TripIt → profile icon → Settings → enable Calendar Sync if needed → Calendar Feed. **Treat this as a password** — anyone holding it can read your itineraries. |
-| `TIM_API_KEY` | [console.cloud.google.com](https://console.cloud.google.com) → create or pick a project → APIs & Services → Library → search "Travel Impact Model API" → Enable → Credentials → Create Credentials → API key. Free, no billing required. Restricting the key to just that API is recommended. |
+#### `TRIPIT_ICAL_URL`
+
+TripIt → profile icon → Settings → enable Calendar Sync if needed → Calendar Feed.
+
+**Treat this as a password.** Anyone holding it can read your itineraries.
+
+#### `TIM_API_KEY`
+
+[console.cloud.google.com](https://console.cloud.google.com) → create or pick a project → APIs &
+Services → Library → search "Travel Impact Model API" → Enable → Credentials → Create Credentials →
+API key.
+
+Free, no billing required. Restricting the key to just that API is recommended.
 
 ### 3. Run it once by hand
 
@@ -87,7 +96,7 @@ analysis of them, so nothing in it goes stale when you edit a row and a backfill
 doesn't rewrite every row after it. The workflow log prints the current total on every run, and
 this gets it from the file:
 
-```
+```bash
 awk -F, 'NR==1{for(i=1;i<=NF;i++)if($i=="emissions_kg_actual")c=i;next} $c!=""{t+=$c} END{printf "%.1f kg CO2e\n",t}' flight_emissions.csv
 ```
 
@@ -116,7 +125,7 @@ From the day after departure a row is frozen and only you can change it.
 You don't need to. Every upcoming flight is re-priced on every run, so the daily
 sync already captures the best figure available before departure.
 
-Scheduling a run *just* before takeoff, to catch a last-minute aircraft change,
+Scheduling a run _just_ before takeoff, to catch a last-minute aircraft change,
 is unlikely to help: TIM's responses carry a dataset stamp (the `+dated` part of
 `model_version`) that doesn't move daily, which suggests a late call returns what
 the morning's call returned. And GitHub's scheduler is best-effort — routinely
@@ -155,7 +164,7 @@ Bump that tag when you want a newer version. It's pinned rather than tracking `m
 upstream can never surprise a working setup. See
 [contrail's releases](https://github.com/atdr/contrail/releases) for what's changed.
 
-Dependabot (`.github/dependabot.yml`) keeps the *actions* in the workflow current, but it will
+Dependabot (`.github/dependabot.yml`) keeps the _actions_ in the workflow current, but it will
 **not** touch this pin — it's a plain shell command, not a dependency manifest. Upgrading contrail
 is always your deliberate edit.
 
@@ -166,7 +175,9 @@ break a sync, and the scheduled run only tells you the next morning, once they'v
 So `check-instance.yml` runs on every pull request in **your own repo** and does the sync
 in advance:
 
-    contrail sync --csv-path flight_emissions.csv --dry-run
+```bash
+contrail sync --csv-path flight_emissions.csv --dry-run
+```
 
 It installs whatever version your branch's `sync.yml` pins, reads your feed and your
 exports, reconciles them against the log you already have, and prints what a real sync
@@ -198,14 +209,16 @@ This repo was created from the [atdr/contrail-gh](https://github.com/atdr/contra
 template. Unlike a fork, it has no ongoing link back to the template, so
 there's no automatic way to pull in future changes — you set this up
 once, yourself. This should rarely matter: contrail-gh's workflow and
-README change infrequently, and most contrail *upgrades* only need you to
+README change infrequently, and most contrail _upgrades_ only need you to
 bump the version tag in `.github/workflows/sync.yml`, not touch anything
 here.
 
 **One-time setup**, right after creating your repo:
 
-    git remote add template https://github.com/atdr/contrail-gh.git
-    git fetch template
+```bash
+git remote add template https://github.com/atdr/contrail-gh.git
+git fetch template
+```
 
 **Call it `template`, not `upstream`.** `gh` picks which repo a command acts on
 by remote name, and it ranks exactly three: `upstream`, then `github`, then
@@ -219,11 +232,16 @@ Already added it as `upstream` or `github`? See
 
 **To check for and pull in updates later:**
 
-    git fetch template
-    git diff template/main -- .github/workflows/
+```bash
+git fetch template
+git diff template/main -- .github/workflows/ \
+  .markdownlint-cli2.yaml .prettierrc.json .prettierignore
+```
 
 The files fall into two groups. Everything under `.github/workflows/`,
-`README.md`, `AGENTS.md` and `.claude/` are template-owned and safe to pull.
+`README.md`, `AGENTS.md`, `.claude/` and the three Markdown config files
+(`.markdownlint-cli2.yaml`, `.prettierrc.json`, `.prettierignore`) are
+template-owned and safe to pull.
 `flight_emissions.csv` is yours — your real flight data — and should
 never be overwritten from the template; `last_checked.txt` is regenerated
 every run and can be ignored either way.
@@ -233,13 +251,22 @@ template-owned, while any `FlightyExport-*.csv` beside it is yours. The
 template ships no exports, so pulling can't delete one — but if you
 resolve conflicts by taking the template wholesale, keep your exports.
 
-Pull just the workflow files rather than merging the whole branch:
+Pull just those files rather than merging the whole branch:
 
-    git checkout template/main -- .github/workflows/
-    # review the diff and re-apply your own version pin (the "@vX.Y.Z" in
-    # sync.yml's pip install line) if the template's copy overwrote it, then:
-    git add .github/workflows/
-    git commit -m "Update workflows from contrail-gh"
+```bash
+git checkout template/main -- .github/workflows/ \
+  .markdownlint-cli2.yaml .prettierrc.json .prettierignore
+# review the diff and re-apply your own version pin (the "@vX.Y.Z" in
+# sync.yml's pip install line) if the template's copy overwrote it, then:
+git add .github/workflows/ .markdownlint-cli2.yaml .prettierrc.json .prettierignore
+git commit -m "Update workflows from contrail-gh"
+```
+
+The config files are named alongside the workflows because `markdown.yml` reads
+them: pull the workflow without them and the Markdown check runs against
+markdownlint's defaults instead of the settings it was written for. They are
+listed one by one rather than pulling all of `.github/`, which would restore a
+`dependabot.yml` you had deleted.
 
 `sync.yml` is the only one carrying anything of yours. `check-instance.yml` reads
 the pin out of `sync.yml` rather than repeating it, and `check-template.yml` does
@@ -259,7 +286,9 @@ actually want is simpler and avoids this entirely.
 the template remote `upstream` or `github`, both of which `gh` ranks above
 `origin`. Rename it:
 
-    git remote rename upstream template     # or: github template
+```bash
+git remote rename upstream template     # or: github template
+```
 
 Anything you already created with a bare `gh` command went to that public repo
 rather than this one, so it's worth a look before carrying on.
@@ -288,3 +317,8 @@ workflow from the Actions tab.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+<!-- This file is wrapped at 100, not the 80 the rest of the repo uses. -->
+<!-- markdownlint-configure-file {
+  "MD013": { "line_length": 100, "tables": false, "code_blocks": false }
+} -->

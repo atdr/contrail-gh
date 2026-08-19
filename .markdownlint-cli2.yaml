@@ -1,0 +1,37 @@
+# Markdown rules. Prettier owns whitespace and table alignment; this file owns
+# what Prettier cannot express. Both run on every pull request, in
+# atdr/contrail-gh and in each repo created from it, via
+# .github/workflows/markdown.yml.
+#
+# This file arrives in your own repo as a copy, not a link. Edit it freely —
+# it describes your docs once the repo is yours.
+#
+# .prettierrc.json carries two settings and no room to explain them:
+# `proseWrap: preserve`, because the prose here is wrapped by hand at
+# deliberate points and `always` would rewrap every paragraph; and
+# `embeddedLanguageFormatting: off`, because the code inside a fence is a
+# worked example or a command someone will paste, not source to be tidied.
+gitignore: true
+
+# Without this, a bare `markdownlint-cli2` finds nothing and reports success.
+globs:
+  - "**/*.md"
+
+config:
+  MD013:
+    # AGENTS.md, flighty/README.md and the skill already hold 80. README.md
+    # wraps at 100 and says so in a markdownlint-configure-file comment at its
+    # foot.
+    line_length: 80
+    # A padded table row is wider than any prose limit, and a fenced block is
+    # usually a command that must not be broken.
+    tables: false
+    code_blocks: false
+  MD046:
+    # GitHub only syntax-highlights fenced blocks, so an indented one silently
+    # loses the highlighting the author meant to have.
+    style: fenced
+
+ignores:
+  # A symlink to AGENTS.md. Linting it reports every line of that file twice.
+  - CLAUDE.md
