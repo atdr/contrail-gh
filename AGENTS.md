@@ -126,12 +126,19 @@ load-bearing:**
 | `check-template.yml` | `if: github.repository == 'atdr/contrail-gh'` | the template only |
 | `sync.yml` | `if: github.repository != 'atdr/contrail-gh'` | instances only |
 | `check-instance.yml` | `if: github.repository != 'atdr/contrail-gh'` | instances only |
+| `markdown.yml` | none — it is `workflow_call` only | wherever it is called |
 
 Removing one produces a workflow that fails forever in the wrong repo: the
 template checks assume a header-only CSV and would fail against real data, while
 the sync and the pull request check have no secrets and nothing to log in
-`atdr/contrail-gh`. All three key off the repository name, so an instance is
-simply "not the template" — no per-user configuration needed.
+`atdr/contrail-gh`. The three guarded ones key off the repository name, so an
+instance is simply "not the template" — no per-user configuration needed.
+
+`markdown.yml` is the exception, and deliberately so: it carries no guard
+because it never triggers on its own. `check-template.yml` and
+`check-instance.yml` each call it behind their own guard, so it runs in
+`atdr/contrail-gh` and in every repo created from the template, from one
+definition. That is the point — a check defined twice is a check that drifts.
 
 `check-instance.yml` is the one `atdr/contrail-gh` can never try out, because
 its guard skips it there on every run. `check-template.yml` compensates with a
@@ -141,6 +148,13 @@ request check inspects a different set of sources than the sync reads. It does
 *not* take `TIM_API_KEY`, and that omission is deliberate: a dry run never
 prices, so the key would go unused and the check stays quick and off the
 emissions API.
+
+The call to `markdown.yml` from `check-instance.yml` has the same blind spot,
+and `check-template.yml` checks it the same way: `markdown.yml` must exist, both
+workflows must still call it, and the three config files it reads
+(`.markdownlint-cli2.yaml`, `.prettierrc.json`, `.prettierignore`) must be
+present. Without that last one an instance can pull the workflow alone and lint
+against markdownlint's defaults.
 
 It is triggered by `pull_request` alone. A `workflow_dispatch` run would carry
 the same name while checking less — the data-loss steps have no base commit to
@@ -179,6 +193,18 @@ easily with no new flights to commit. It is not redundant.
 
 **`permissions: contents: write` is required.** `GITHUB_TOKEN` has been read-only
 by default since February 2023; without it the commit-back step 403s.
+
+**Markdown is formatted, not hand-aligned.** Prettier owns table padding and
+whitespace, markdownlint-cli2 owns line length and the rest, and
+`markdown.yml` runs both on every pull request. Run
+`npx prettier@3.9.6 --write "**/*.md"` rather than lining a table up by hand.
+Prose wraps at 80, except `README.md`, which wraps at 100 and says so in a
+`markdownlint-configure-file` comment at its foot. `CLAUDE.md` is excluded from
+both tools because it is a symlink to this file.
+
+The same three config files exist in `atdr/contrail`, as copies. Three
+repositories cannot share one, so a rule changed in either place has to be
+changed in the other or they start disagreeing about what correct Markdown is.
 
 ## When contrail changes
 

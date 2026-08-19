@@ -1,0 +1,39 @@
+# The Markdown check, defined once and called from both check-template.yml and
+# check-instance.yml. Those two are guarded by repository name in opposite
+# directions, so exactly one of them fires in any repository — in
+# atdr/contrail-gh it is check-template.yml, and in a repo created from it,
+# check-instance.yml. Defining the check here rather than in each of them is
+# what stops the template and an instance drifting into checking different
+# things.
+#
+# Two tools, because neither does the other's job: markdownlint has no rule
+# that pads a table cell, and Prettier has no opinion on line length. Settings
+# for both live in .markdownlint-cli2.yaml and .prettierrc.json at the root.
+#
+# In your own repo this runs on your docs, including anything you have added.
+# If you would rather it did not, delete the `markdown` job from
+# check-instance.yml — nothing else depends on it.
+name: Markdown
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # An action rather than `npx`, so the github-actions dependabot ecosystem
+      # in .github/dependabot.yml keeps it current. Prettier has no first-party
+      # action, so its pin below is a hand edit.
+      - uses: DavidAnson/markdownlint-cli2-action@v9
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - run: npx prettier@3.9.6 --check "**/*.md"

@@ -139,3 +139,9 @@ jobs:
 
           print(f"flight_emissions.csv: {base} -> {head} row(s)")
           PY
+
+  # The mirror of check-template.yml's call: the same check, on your own docs.
+  # Delete this job if you would rather your Markdown were not checked.
+  markdown:
+    if: github.repository != 'atdr/contrail-gh'
+    uses: ./.github/workflows/markdown.yml

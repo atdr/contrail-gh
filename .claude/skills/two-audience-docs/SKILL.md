@@ -51,7 +51,12 @@ That sentence is true and inert in both repos. Prefer `atdr/contrail-gh` and
    enforces this" without saying where.
 4. **Say when a section does not apply**, in the section itself. A reader who
    skipped the heading needs the body to tell them.
-5. **Re-read as the other reader before committing.** Ask the direct question:
+5. **Don't hand-align a table.** `markdown.yml` runs Prettier and
+   markdownlint-cli2 on every pull request in both repos; Prettier decides the
+   padding, and prose wraps at 80 (100 in `README.md`). That is mechanical and
+   says nothing about wording — everything above still has to be got right by
+   reading.
+6. **Re-read as the other reader before committing.** Ask the direct question:
    *what does this tell them to delete?* That is the failure that costs data;
    being over-cautious in the public repo costs nothing.
 
