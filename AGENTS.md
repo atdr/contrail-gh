@@ -194,6 +194,15 @@ easily with no new flights to commit. It is not redundant.
 **`permissions: contents: write` is required.** `GITHUB_TOKEN` has been read-only
 by default since February 2023; without it the commit-back step 403s.
 
+**Every workflow is named after its own file**, and the description goes on the
+job. GitHub labels a check `<workflow name> / <job name>` and never shows the
+filename, so a workflow named for what it does leaves a reader guessing which of
+the four files to open — `check-template / template contract` names both. A
+workflow reached through `workflow_call` adds a third segment, the calling job's:
+`check-template / markdown / lint`. In `atdr/contrail-gh`, `check-template.yml`
+fails the build when a workflow's name and its filename disagree; the job names
+are a convention it does not check.
+
 **Markdown is formatted, not hand-aligned.** Prettier owns table padding and
 whitespace, markdownlint-cli2 owns line length and the rest, and
 `markdown.yml` runs both on every pull request. Run

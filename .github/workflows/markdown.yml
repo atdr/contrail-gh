@@ -13,7 +13,7 @@
 # In your own repo this runs on your docs, including anything you have added.
 # If you would rather it did not, delete the `markdown` job from
 # check-instance.yml — nothing else depends on it.
-name: Markdown
+name: markdown
 
 on:
   workflow_call:
@@ -23,6 +23,7 @@ permissions:
 
 jobs:
   markdown:
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

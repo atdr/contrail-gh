@@ -1,4 +1,4 @@
-name: Check template
+name: check-template
 
 on:
   push:
@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   check:
+    name: template contract
     # Only meaningful in the template itself. A repo created from it has real
     # data in the CSV and may sit on an older schema until its next sync, so
     # these checks would fail there for no good reason.
@@ -148,6 +149,41 @@ jobs:
             exit 1
           fi
           echo "markdown.yml exists, is called by both checks, and has its config"
+
+      # A check is only useful if a reader can tell which file produced it.
+      # GitHub labels a check "<workflow name> / <job name>", never the
+      # filename, so a workflow named for what it does leaves someone reading a
+      # pull request guessing which of these files to open. Keeping the name
+      # equal to the filename makes that mapping mechanical; the job name is
+      # where the description goes.
+      - name: Every workflow must be named after its file
+        run: |
+          STATUS=0
+          for F in .github/workflows/*.yml; do
+            STEM=$(basename "$F" .yml)
+            # The workflow's own name is the one `name:` at column zero; a job
+            # or step name is always indented under it.
+            NAME=$(grep -m1 '^name:' "$F" | cut -d: -f2- \
+                   | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+                         -e "s/^['\"]//" -e "s/['\"]$//")
+            if [ -z "$NAME" ]; then
+              echo "$F has no top-level 'name:', so GitHub labels its checks with"
+              echo "the file path instead. Add: name: ${STEM}"
+              STATUS=1
+            elif [ "$NAME" != "$STEM" ]; then
+              echo "$F is named '${NAME}' but its checks should read '${STEM}'."
+              STATUS=1
+            fi
+          done
+
+          if [ "$STATUS" -ne 0 ]; then
+            echo
+            echo "Name each workflow after its own file, and put the description on"
+            echo "the job — a check then reads 'check-template / template contract',"
+            echo "which names both the file to open and what it does."
+            exit 1
+          fi
+          echo "every workflow is named after its file"
 
       - name: Install the contrail version this template pins
         run: |

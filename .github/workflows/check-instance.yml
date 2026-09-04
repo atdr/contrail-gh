@@ -1,4 +1,4 @@
-name: Check the sync still runs
+name: check-instance
 
 on:
   # Pull requests only. There is nothing to check on a schedule — sync.yml
@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   check:
+    name: dry run the sync
     # The same guard as sync.yml, and the mirror of check-template.yml's. This
     # checks a repo created from the template, against that repo's own flight
     # log and secrets. atdr/contrail-gh has neither, so the job is skipped there

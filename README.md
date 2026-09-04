@@ -52,7 +52,7 @@ Free, no billing required. Restricting the key to just that API is recommended.
 
 ### 3. Run it once by hand
 
-Go to the **Actions** tab → **Sync flight emissions** → **Run workflow**.
+Go to the **Actions** tab → **sync** → **Run workflow**.
 
 (If you don't see the button, check that `.github/workflows/sync.yml` is on your repo's default
 branch — that's what makes it appear.)
