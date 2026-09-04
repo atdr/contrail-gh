@@ -203,6 +203,19 @@ workflow reached through `workflow_call` adds a third segment, the calling job's
 fails the build when a workflow's name and its filename disagree; the job names
 are a convention it does not check.
 
+**Every job sets `timeout-minutes`.** GitHub's default is six hours, and the
+failure that matters here is a stall rather than an error: `npx` fetching
+Prettier and `pip` fetching contrail both hang instead of failing, and one
+stalled Prettier download has already cost five minutes in a job that usually
+runs in twelve seconds. The three checks allow ten minutes. `sync.yml` allows
+sixty, and that one is deliberately generous — a sync killed mid-run commits
+nothing, so every emissions figure it had already fetched is lost, and TIM will
+not price a flight once it has departed. In a repo created from
+`atdr/contrail-gh` a hung job also spends metered Actions minutes, which the
+public `atdr/contrail-gh` never pays. The setting cannot go on a job that calls
+`markdown.yml` — a job with `uses:` takes no `timeout-minutes` — so it lives on
+the job inside `markdown.yml`, which covers both callers.
+
 **Markdown is formatted, not hand-aligned.** Prettier owns table padding and
 whitespace, markdownlint-cli2 owns line length and the rest, and
 `markdown.yml` runs both on every pull request. Run

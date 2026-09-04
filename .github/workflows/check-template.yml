@@ -11,6 +11,10 @@ permissions:
 jobs:
   check:
     name: template contract
+    # Roughly forty times the usual runtime. The point is a step that hangs
+    # rather than fails — a pip or registry fetch that stalls — which would
+    # otherwise sit until GitHub's six-hour default.
+    timeout-minutes: 10
     # Only meaningful in the template itself. A repo created from it has real
     # data in the CSV and may sit on an older schema until its next sync, so
     # these checks would fail there for no good reason.

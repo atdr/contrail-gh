@@ -24,6 +24,15 @@ permissions:
 jobs:
   markdown:
     name: lint
+    # `npx` fetches Prettier from the registry on every run, and a stalled
+    # fetch hangs rather than failing: one has already cost five minutes in a
+    # job that usually finishes in twelve seconds. Ten minutes bounds that.
+    # GitHub's default is six hours.
+    #
+    # It has to live here rather than on the jobs that call this workflow: a
+    # job with `uses:` takes no timeout-minutes of its own. Defining it once
+    # here covers both callers anyway.
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
