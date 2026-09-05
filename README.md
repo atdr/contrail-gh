@@ -272,6 +272,12 @@ listed one by one rather than pulling all of `.github/`, which would restore a
 the pin out of `sync.yml` rather than repeating it, and `check-template.yml` does
 nothing outside `atdr/contrail-gh` — so neither needs re-editing after a pull.
 
+A pull can also rename a workflow, which changes what the **Actions** tab calls
+it. `README.md` isn't in the command above, so yours keeps whatever name it was
+written against: if step 3 there sends you to a workflow you can no longer find,
+compare it against this repo's copy. The names now match the filenames, so
+`sync.yml` is **sync**.
+
 A full `git merge template/main` is possible instead, but needs
 `--allow-unrelated-histories` the first time, and will try to merge
 `flight_emissions.csv` too — which doesn't make sense, since your copy has
