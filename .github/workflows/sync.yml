@@ -64,12 +64,20 @@ jobs:
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > last_checked.txt
 
       - name: Commit changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add flight_emissions.csv last_checked.txt
-          # The sidecar holds everything the emissions API returned; TIM
-          # will not answer for a flight once it has departed.
-          git add flight_emissions.raw.jsonl 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "Sync flight emissions"
-          git push
+        # ghcommit-action goes through the same GraphQL API GitHub's own UI
+        # uses to commit, so the result is signed and shows as Verified — a
+        # plain `git commit` here never could, no matter what identity it
+        # configured. file_pattern is scoped to sync's own outputs rather than
+        # its "." default, so a repo with stray local changes never commits
+        # them by accident.
+        #
+        # flight_emissions.raw.jsonl may not exist yet on a repo's first-ever
+        # sync; untested here since this repo already has one.
+        uses: planetscale/ghcommit-action@v0.2.22
+        with:
+          commit_message: "Sync flight emissions"
+          repo: ${{ github.repository }}
+          branch: ${{ github.ref_name }}
+          file_pattern: "flight_emissions.csv last_checked.txt flight_emissions.raw.jsonl"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
