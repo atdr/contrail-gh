@@ -162,9 +162,23 @@ jobs:
       # where the description goes.
       - name: Every workflow must be named after its file
         run: |
+          # GitHub accepts either extension, so both are globbed. nullglob
+          # because an unmatched pattern would otherwise arrive as a literal
+          # filename and fail on a file that does not exist; the count below
+          # then catches the case this hides, a loop that passes by looking at
+          # nothing.
+          shopt -s nullglob
+          FILES=(.github/workflows/*.yml .github/workflows/*.yaml)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No workflow files found. This check cannot have run."
+            exit 1
+          fi
+
           STATUS=0
-          for F in .github/workflows/*.yml; do
-            STEM=$(basename "$F" .yml)
+          for F in "${FILES[@]}"; do
+            STEM=$(basename "$F")
+            STEM=${STEM%.yml}
+            STEM=${STEM%.yaml}
             # The workflow's own name is the one `name:` at column zero; a job
             # or step name is always indented under it.
             NAME=$(grep -m1 '^name:' "$F" | cut -d: -f2- \

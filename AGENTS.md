@@ -203,11 +203,16 @@ workflow reached through `workflow_call` adds a third segment, the calling job's
 fails the build when a workflow's name and its filename disagree; the job names
 are a convention it does not check.
 
-**Every job sets `timeout-minutes`.** GitHub's default is six hours, and the
-failure that matters here is a stall rather than an error: `npx` fetching
-Prettier and `pip` fetching contrail both hang instead of failing, and one
-stalled Prettier download has already cost five minutes in a job that usually
-runs in twelve seconds. The three checks allow ten minutes. `sync.yml` allows
+**Every job that can carry `timeout-minutes` sets one.** GitHub's default is six
+hours, and the failure that matters here is a stall rather than an error: `npx`
+fetching Prettier and `pip` fetching contrail both hang instead of failing.
+Prettier's fetch stalls intermittently and expensively: the Markdown job takes
+twelve seconds when the fetch is clean, and when it is not it sits silent for
+exactly 301 seconds, npm's 300s `fetch-timeout` expiring and the retry then
+succeeding. A timeout bounds the fetch that never recovers, which is all a
+timeout can do; ending the recurring five minutes needs the download cached
+instead, which is issue #8. The three
+checks allow ten minutes. `sync.yml` allows
 sixty, and that one is deliberately generous — a sync killed mid-run commits
 nothing, so every emissions figure it had already fetched is lost, and TIM will
 not price a flight once it has departed. In a repo created from
