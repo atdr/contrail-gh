@@ -2,7 +2,8 @@
 
 Runs [contrail](https://github.com/atdr/contrail) on a schedule via GitHub
 Actions and commits a flight-emissions log back to the repository. This repo
-holds **no logic** — it installs contrail from a pinned release tag and runs it.
+holds **no logic** — it installs contrail from PyPI at a pinned version and runs
+it.
 Behaviour questions belong in contrail; this is scaffolding.
 
 ## First: work out which repo you are in
@@ -71,10 +72,13 @@ departed, and the calendar feed only carries recent trips.
 - Exports in `flighty/` are committed on purpose and are read by every sync.
   Don't tidy them away. Re-exporting is safe — Flighty ids are stable, so a
   re-export re-prices nothing.
-- Upgrading contrail means editing one line — the `@vX.Y.Z` pin in `sync.yml`.
-  Check [contrail's releases](https://github.com/atdr/contrail/releases) first.
+- Upgrading contrail means merging the Dependabot pull request that bumps the
+  pin in `requirements.txt`. Check
+  [contrail's releases](https://github.com/atdr/contrail/releases) for what
+  changed first.
 - Pulling template updates is manual and one file at a time; see "Staying up to
-  date" in the README. Re-apply your own pin afterwards.
+  date" in the README. Re-apply your own pin in `requirements.txt` afterwards
+  if the template's copy overwrote it.
 - The template remote should be called `template`, so that `gh` keeps resolving
   to this repo rather than the public one. Don't rename it to `upstream` or
   `github` — `gh` ranks both above `origin`. If you find one of those names here,
@@ -106,8 +110,9 @@ since removing an export in a later commit leaves it in the history of a public
 repo. Both run after a push, so they are a backstop: an export that reaches a
 public branch should be assumed disclosed, not merely caught.
 
-**The header must match the contrail version `sync.yml` pins** — the pinned tag,
-not contrail's `main`. Regenerate it after installing that version:
+**The header must match the contrail version `requirements.txt` pins** — the
+pinned version, not contrail's `main`. Regenerate it after installing that
+version:
 
 ```bash
 python -c 'from contrail.storage.local_csv import CSV_FIELDS; print(",".join(CSV_FIELDS))' \
@@ -172,16 +177,21 @@ Before editing any Markdown here, read
 
 ## True in both
 
-**The version pin is deliberate.** `sync.yml` installs `contrail@vX.Y.Z` and must
-never track `main`: a change upstream would otherwise reach every instance
-unannounced. Bumping is opt-in, which is also why the README tells people to
-re-apply their own pin after pulling template updates.
+**The version pin is deliberate.** `requirements.txt` pins an exact `contrails`
+version and must never track `main` or a floor: a change upstream would
+otherwise reach every instance unannounced. Bumping is still opt-in — Dependabot
+(`.github/dependabot.yml`) only ever proposes the pull request; merging it is
+the deliberate step, and it's also why the README tells people to re-apply
+their own pin after pulling template updates.
 
-`sync.yml` is the only place that version is decided. The docs quote it back to
-the reader, so bumping it means updating any doc that spells the tag out — in the
-template `check-template.yml` fails the build if one disagrees, since a stale
-quote sends people to a release this template doesn't install. Write `@vX.Y.Z`
-where you mean the pin in general; only a real tag is checked.
+`requirements.txt` is the only place that version is decided. `sync.yml`,
+`check-instance.yml` and `check-template.yml` all install from it rather than
+repeating it. The docs quote it back to the reader too, so bumping it means
+updating any doc that spells the version out — in the template
+`check-template.yml` fails the build if one disagrees, since a stale quote
+sends people to a release this template doesn't install. Write
+`contrails==X.Y.Z` where you mean the pin in general; only a real version is
+checked.
 
 **`git add` in `sync.yml` must cover every file contrail writes.** Today:
 `flight_emissions.csv`, `flight_emissions.raw.jsonl`, `last_checked.txt`. A new

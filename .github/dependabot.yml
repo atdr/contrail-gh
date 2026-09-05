@@ -1,14 +1,27 @@
 version: 2
 updates:
-  # Keeps the actions in sync.yml current. Note this does NOT bump the pinned
-  # contrail version in that workflow — that's a plain `run:` command, not a
-  # dependency manifest, so upgrading contrail stays a deliberate edit you make.
+  # Keeps the actions in sync.yml current.
   #
-  # Delete this file if you'd rather not get the PRs.
+  # Delete this entry if you'd rather not get the PRs.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    commit-message:
+      prefix: chore
+      include: scope
+
+  # Proposes the contrail bump in requirements.txt, which sync.yml,
+  # check-instance.yml and check-template.yml all install from. It only ever
+  # opens the pull request — merging it is still your deliberate step, and
+  # check-instance.yml dry-runs it against your own data first.
+  #
+  # Delete this entry if you'd rather not get the PRs.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
     commit-message:
       prefix: chore
       include: scope

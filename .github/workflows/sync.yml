@@ -39,10 +39,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Pinned to a release tag on purpose: never track main. Bumping this is a
-      # deliberate one-line edit you make when you're ready.
+      # requirements.txt is the only place the version is decided — never
+      # track main. Dependabot proposes the bump; merging its PR is still the
+      # deliberate step.
       - name: Install contrail
-        run: pip install "contrail @ git+https://github.com/atdr/contrail.git@v0.3.0"
+        run: pip install -r requirements.txt
 
       - name: Sync
         env:

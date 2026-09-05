@@ -1,0 +1,9 @@
+# The only place the contrail version is decided. sync.yml, check-instance.yml
+# and check-template.yml all install from this file rather than repeating the
+# pin, so Dependabot's bump PRs (see .github/dependabot.yml) update every one
+# of them at once.
+#
+# Pinned to an exact release on purpose: never a floor, never main. Bumping is
+# still deliberate — reviewing and merging the Dependabot PR that proposes it,
+# rather than hand-editing a tag. See README.md's "Upgrading contrail".
+contrails==0.4.0

@@ -34,21 +34,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Read the pin out of sync.yml rather than spelling it out again: that
-      # file is the only place the version is decided. Writing a tag here would
-      # also be backwards on the change that matters most — a pull request that
-      # bumps the pin would be checked against the release it is moving away
-      # from.
-      - name: Install the contrail version sync.yml pins
-        run: |
-          PIN=$(grep -o 'contrail\.git@v[0-9][0-9.]*' .github/workflows/sync.yml | head -1 | cut -d@ -f2)
-          if [ -z "$PIN" ]; then
-            echo "No contrail pin found in sync.yml. Has the install line changed shape?"
-            echo "check-template.yml reads it the same way, so neither can work now."
-            exit 1
-          fi
-          echo "sync.yml pins $PIN"
-          pip install "contrail @ git+https://github.com/atdr/contrail.git@${PIN}"
+      # Installs from requirements.txt rather than spelling out a version
+      # again: that file is the only place the version is decided, and a pull
+      # request that bumps it is checked against the release it is moving
+      # to, not the one it's moving away from.
+      - name: Install the contrail version requirements.txt pins
+        run: pip install -r requirements.txt
 
       # The point of the whole workflow: parse every source this repo is
       # configured with, reconcile against the log it already has, and report.
