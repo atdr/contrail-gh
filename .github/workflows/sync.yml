@@ -63,13 +63,65 @@ jobs:
         # commits for that long, so always touch a timestamp file.
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > last_checked.txt
 
-      - name: Commit changes
+      - name: Detect changes
+        id: detect
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add flight_emissions.csv last_checked.txt
+          # Intent-to-add, not a real `git add`: nothing here is committed by
+          # git. The next step reads these same paths off disk and ships them
+          # through the API, so the index is scratch state for a runner that's
+          # discarded either way — this just makes untracked new files (a
+          # first-ever raw.jsonl, say) show up in the diff below.
+          git add -N flight_emissions.csv last_checked.txt
           # The sidecar holds everything the emissions API returned; TIM
           # will not answer for a flight once it has departed.
-          git add flight_emissions.raw.jsonl 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "Sync flight emissions"
-          git push
+          git add -N flight_emissions.raw.jsonl 2>/dev/null || true
+          changed=$(git diff --name-only -- flight_emissions.csv last_checked.txt flight_emissions.raw.jsonl)
+          if [ -z "$changed" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "files<<EOF"
+              echo "$changed"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit changes
+        # A plain `git commit` here can never come back Verified: GitHub only
+        # signs commits it constructs itself, so this goes through the
+        # createCommitOnBranch GraphQL mutation instead of git. That also
+        # retires the git-identity config this step used to need — author and
+        # committer both come from whatever token calls the API, which for
+        # GITHUB_TOKEN is github-actions[bot] — and expectedHeadOid fails the
+        # run instead of silently overwriting a commit that landed here since
+        # checkout.
+        if: steps.detect.outputs.has_changes == 'true'
+        uses: actions/github-script@v9
+        env:
+          CHANGED_FILES: ${{ steps.detect.outputs.files }}
+        with:
+          script: |
+            const fs = require("fs");
+            const { owner, repo } = context.repo;
+            const branch = context.ref.replace("refs/heads/", "");
+            const { data: head } = await github.rest.repos.getBranch({ owner, repo, branch });
+            const files = process.env.CHANGED_FILES.split("\n").filter(Boolean);
+            await github.graphql(
+              `mutation ($input: CreateCommitOnBranchInput!) {
+                createCommitOnBranch(input: $input) { commit { oid } }
+              }`,
+              {
+                input: {
+                  branch: { repositoryNameWithOwner: `${owner}/${repo}`, branchName: branch },
+                  message: { headline: "Sync flight emissions" },
+                  expectedHeadOid: head.commit.sha,
+                  fileChanges: {
+                    additions: files.map((path) => ({
+                      path,
+                      contents: fs.readFileSync(path).toString("base64"),
+                    })),
+                  },
+                },
+              },
+            );
