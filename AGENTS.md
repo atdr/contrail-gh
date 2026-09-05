@@ -194,6 +194,33 @@ easily with no new flights to commit. It is not redundant.
 **`permissions: contents: write` is required.** `GITHUB_TOKEN` has been read-only
 by default since February 2023; without it the commit-back step 403s.
 
+**Every workflow is named after its own file**, and the description goes on the
+job. GitHub labels a check `<workflow name> / <job name>` and never shows the
+filename, so a workflow named for what it does leaves a reader guessing which of
+the four files to open — `check-template / template contract` names both. A
+workflow reached through `workflow_call` adds a third segment, the calling job's:
+`check-template / markdown / lint`. In `atdr/contrail-gh`, `check-template.yml`
+fails the build when a workflow's name and its filename disagree; the job names
+are a convention it does not check.
+
+**Every job that can carry `timeout-minutes` sets one.** GitHub's default is six
+hours, and the failure that matters here is a stall rather than an error: `npx`
+fetching Prettier and `pip` fetching contrail both hang instead of failing.
+Prettier's fetch stalls intermittently and expensively: the Markdown job takes
+twelve seconds when the fetch is clean, and when it is not it sits silent for
+exactly 301 seconds, npm's 300s `fetch-timeout` expiring and the retry then
+succeeding. A timeout bounds the fetch that never recovers, which is all a
+timeout can do; ending the recurring five minutes needs the download cached
+instead, which is issue #8. The three
+checks allow ten minutes. `sync.yml` allows
+sixty, and that one is deliberately generous — a sync killed mid-run commits
+nothing, so every emissions figure it had already fetched is lost, and TIM will
+not price a flight once it has departed. In a repo created from
+`atdr/contrail-gh` a hung job also spends metered Actions minutes, which the
+public `atdr/contrail-gh` never pays. The setting cannot go on a job that calls
+`markdown.yml` — a job with `uses:` takes no `timeout-minutes` — so it lives on
+the job inside `markdown.yml`, which covers both callers.
+
 **Markdown is formatted, not hand-aligned.** Prettier owns table padding and
 whitespace, markdownlint-cli2 owns line length and the rest, and
 `markdown.yml` runs both on every pull request. Run

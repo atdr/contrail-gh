@@ -1,4 +1,4 @@
-name: Check the sync still runs
+name: check-instance
 
 on:
   # Pull requests only. There is nothing to check on a schedule — sync.yml
@@ -12,6 +12,11 @@ permissions:
 
 jobs:
   check:
+    name: dry run the sync
+    # Bounds a stalled pip fetch or a feed that never answers. Generous
+    # against the real work — a dry run parses sources and prices nothing —
+    # but far below GitHub's six-hour default.
+    timeout-minutes: 10
     # The same guard as sync.yml, and the mirror of check-template.yml's. This
     # checks a repo created from the template, against that repo's own flight
     # log and secrets. atdr/contrail-gh has neither, so the job is skipped there

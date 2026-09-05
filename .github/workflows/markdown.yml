@@ -13,7 +13,7 @@
 # In your own repo this runs on your docs, including anything you have added.
 # If you would rather it did not, delete the `markdown` job from
 # check-instance.yml — nothing else depends on it.
-name: Markdown
+name: markdown
 
 on:
   workflow_call:
@@ -23,6 +23,19 @@ permissions:
 
 jobs:
   markdown:
+    name: lint
+    # `npx` fetches Prettier from the registry on every run, and a stalled
+    # fetch hangs rather than failing. It stalls intermittently and expensively:
+    # the job takes twelve seconds when the fetch is clean, and when it is not
+    # it sits silent for exactly 301 seconds after "will be installed", npm's
+    # 300s fetch-timeout expiring and the retry then succeeding. Ten minutes
+    # bounds the fetch that never recovers, which is all a timeout can do here.
+    # GitHub's default is six hours. Caching the download is issue #8.
+    #
+    # It has to live here rather than on the jobs that call this workflow: a
+    # job with `uses:` takes no timeout-minutes of its own. Defining it once
+    # here covers both callers anyway.
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

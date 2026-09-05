@@ -1,4 +1,4 @@
-name: Sync flight emissions
+name: sync
 
 on:
   schedule:
@@ -18,6 +18,14 @@ permissions:
 
 jobs:
   sync:
+    name: sync flight emissions
+    # A bound on a hang, not a budget for the work. An hour is far above any
+    # real sync — even the first run, which backfills a whole TripIt feed —
+    # and far below GitHub's six-hour default. Don't tighten it to discipline
+    # runtime: a sync killed mid-run commits nothing, so every emissions
+    # figure it had already fetched is lost, and TIM will not price a flight
+    # once it has departed.
+    timeout-minutes: 60
     # The mirror of the guard in check-template.yml. This workflow is inert in
     # the template itself, which has no secrets and no flight log to update —
     # it would just fail on a schedule forever. It runs in the repo you created

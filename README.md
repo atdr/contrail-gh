@@ -52,7 +52,7 @@ Free, no billing required. Restricting the key to just that API is recommended.
 
 ### 3. Run it once by hand
 
-Go to the **Actions** tab → **Sync flight emissions** → **Run workflow**.
+Go to the **Actions** tab → **sync** → **Run workflow**.
 
 (If you don't see the button, check that `.github/workflows/sync.yml` is on your repo's default
 branch — that's what makes it appear.)
@@ -271,6 +271,12 @@ listed one by one rather than pulling all of `.github/`, which would restore a
 `sync.yml` is the only one carrying anything of yours. `check-instance.yml` reads
 the pin out of `sync.yml` rather than repeating it, and `check-template.yml` does
 nothing outside `atdr/contrail-gh` — so neither needs re-editing after a pull.
+
+A pull can also rename a workflow, which changes what the **Actions** tab calls
+it. `README.md` isn't in the command above, so yours keeps whatever name it was
+written against: if step 3 there sends you to a workflow you can no longer find,
+compare it against this repo's copy. The names now match the filenames, so
+`sync.yml` is **sync**.
 
 A full `git merge template/main` is possible instead, but needs
 `--allow-unrelated-histories` the first time, and will try to merge
