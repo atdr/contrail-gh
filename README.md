@@ -8,7 +8,7 @@ Every day it reads your TripIt calendar feed, prices any new flights using Googl
 `flight_emissions.csv`, and commits the result back. No server, no machine to maintain.
 
 Your flight history and your API keys stay in **your** repo. This template contains no data and
-no secrets, and contrail itself is installed from a pinned release tag.
+no secrets, and contrail itself is installed from PyPI at a pinned version.
 
 ## Setup
 
@@ -154,19 +154,21 @@ delayed. Change the `cron:` line if you'd rather it ran at another time.
 
 ## Upgrading contrail
 
-`sync.yml` pins a contrail release:
+`requirements.txt` pins a contrail release, and `sync.yml`, `check-instance.yml` and
+`check-template.yml` all install from it:
 
-```yaml
-run: pip install "contrail @ git+https://github.com/atdr/contrail.git@v0.3.0"
+```text
+contrails==0.4.0
 ```
 
-Bump that tag when you want a newer version. It's pinned rather than tracking `main` so a change
-upstream can never surprise a working setup. See
-[contrail's releases](https://github.com/atdr/contrail/releases) for what's changed.
+It's pinned to an exact version rather than tracking `main` so a change upstream can never
+surprise a working setup. See [contrail's releases](https://github.com/atdr/contrail/releases)
+for what's changed.
 
-Dependabot (`.github/dependabot.yml`) keeps the _actions_ in the workflow current, but it will
-**not** touch this pin — it's a plain shell command, not a dependency manifest. Upgrading contrail
-is always your deliberate edit.
+Dependabot (`.github/dependabot.yml`) watches this file and opens a pull request when a newer
+version is out. Merging it is still your deliberate step — and because it's an ordinary pull
+request, `check-instance.yml` dry-runs it against your own feed and your own log first, the same
+as any other change.
 
 ## Checking a change before you merge it
 
@@ -179,7 +181,7 @@ in advance:
 contrail sync --csv-path flight_emissions.csv --dry-run
 ```
 
-It installs whatever version your branch's `sync.yml` pins, reads your feed and your
+It installs whatever version your branch's `requirements.txt` pins, reads your feed and your
 exports, reconciles them against the log you already have, and prints what a real sync
 would do — new flights, matches across sources, anything it couldn't parse. A broken feed
 URL, an export contrail can't read, or a pin bumped across a change that doesn't suit
@@ -210,8 +212,8 @@ template. Unlike a fork, it has no ongoing link back to the template, so
 there's no automatic way to pull in future changes — you set this up
 once, yourself. This should rarely matter: contrail-gh's workflow and
 README change infrequently, and most contrail _upgrades_ only need you to
-bump the version tag in `.github/workflows/sync.yml`, not touch anything
-here.
+merge the Dependabot pull request bumping the pinned version in
+`requirements.txt`, not touch anything here.
 
 **One-time setup**, right after creating your repo:
 
@@ -234,14 +236,14 @@ Already added it as `upstream` or `github`? See
 
 ```bash
 git fetch template
-git diff template/main -- .github/workflows/ \
+git diff template/main -- .github/workflows/ requirements.txt \
   .markdownlint-cli2.yaml .prettierrc.json .prettierignore
 ```
 
 The files fall into two groups. Everything under `.github/workflows/`,
-`README.md`, `AGENTS.md`, `.claude/` and the three Markdown config files
-(`.markdownlint-cli2.yaml`, `.prettierrc.json`, `.prettierignore`) are
-template-owned and safe to pull.
+`requirements.txt`, `README.md`, `AGENTS.md`, `.claude/` and the three
+Markdown config files (`.markdownlint-cli2.yaml`, `.prettierrc.json`,
+`.prettierignore`) are template-owned and safe to pull.
 `flight_emissions.csv` is yours — your real flight data — and should
 never be overwritten from the template; `last_checked.txt` is regenerated
 every run and can be ignored either way.
@@ -254,11 +256,12 @@ resolve conflicts by taking the template wholesale, keep your exports.
 Pull just those files rather than merging the whole branch:
 
 ```bash
-git checkout template/main -- .github/workflows/ \
+git checkout template/main -- .github/workflows/ requirements.txt \
   .markdownlint-cli2.yaml .prettierrc.json .prettierignore
-# review the diff and re-apply your own version pin (the "@vX.Y.Z" in
-# sync.yml's pip install line) if the template's copy overwrote it, then:
-git add .github/workflows/ .markdownlint-cli2.yaml .prettierrc.json .prettierignore
+# review the diff and re-apply your own version pin (the "contrails==X.Y.Z"
+# in requirements.txt) if the template's copy overwrote it, then:
+git add .github/workflows/ requirements.txt \
+  .markdownlint-cli2.yaml .prettierrc.json .prettierignore
 git commit -m "Update workflows from contrail-gh"
 ```
 
@@ -268,9 +271,10 @@ markdownlint's defaults instead of the settings it was written for. They are
 listed one by one rather than pulling all of `.github/`, which would restore a
 `dependabot.yml` you had deleted.
 
-`sync.yml` is the only one carrying anything of yours. `check-instance.yml` reads
-the pin out of `sync.yml` rather than repeating it, and `check-template.yml` does
-nothing outside `atdr/contrail-gh` — so neither needs re-editing after a pull.
+`requirements.txt` is the only one carrying anything of yours. `sync.yml`,
+`check-instance.yml` and `check-template.yml` all read the pin out of it rather
+than repeating it, and `check-template.yml` does nothing outside
+`atdr/contrail-gh` — so none of the three needs re-editing after a pull.
 
 A pull can also rename a workflow, which changes what the **Actions** tab calls
 it. `README.md` isn't in the command above, so yours keeps whatever name it was

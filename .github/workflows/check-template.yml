@@ -30,18 +30,18 @@ jobs:
           python-version: "3.12"
 
       # Runs before the install so it fails fast and needs no network. The docs
-      # quote sync.yml's install line back to the reader, and a stale quote
+      # quote requirements.txt's pin back to the reader, and a stale quote
       # sends people to a release this template doesn't install — which is
       # exactly how the README ended up two releases behind once already.
-      - name: The docs must quote the pin sync.yml actually uses
+      - name: The docs must quote the pin requirements.txt actually uses
         run: |
-          PIN=$(grep -o 'contrail\.git@v[0-9][0-9.]*' .github/workflows/sync.yml | head -1 | cut -d@ -f2)
+          PIN=$(grep -oE '^contrails==[0-9][0-9.]*' requirements.txt | head -1 | cut -d= -f3)
           if [ -z "$PIN" ]; then
-            echo "No contrail pin found in sync.yml. Has the install line changed shape?"
+            echo "No contrails pin found in requirements.txt. Has the file changed shape?"
             echo "This check and the one below both read it, so neither can work now."
             exit 1
           fi
-          echo "sync.yml pins $PIN"
+          echo "requirements.txt pins $PIN"
 
           STATUS=0
           # -z because a path with a space would otherwise word-split into two
@@ -53,23 +53,24 @@ jobs:
             if [ -L "$f" ]; then
               continue
             fi
-            # Compare each tag found, not the line it sits on. A line reading
-            # "upgrade from @v0.2.0 to @v0.3.0" contains the current pin and
-            # would pass a substring test while still naming a stale one.
+            # Compare each version found, not the line it sits on. A line
+            # reading "upgrade from contrails==0.2.0 to contrails==0.3.0"
+            # contains the current pin and would pass a substring test while
+            # still naming a stale one.
             while IFS= read -r tag; do
               if [ "$tag" != "$PIN" ]; then
                 echo "  $f: quotes $tag"
                 STATUS=1
               fi
-            done < <(grep -o 'contrail\.git@v[0-9][0-9.]*' "$f" | cut -d@ -f2 || true)
+            done < <(grep -oE 'contrails==[0-9][0-9.]*' "$f" | cut -d= -f3 || true)
           done < <(git ls-files -z '*.md')
 
           if [ "$STATUS" -ne 0 ]; then
             echo
-            echo "The lines above quote a contrail pin other than sync.yml's ${PIN}."
+            echo "The lines above quote a contrails pin other than requirements.txt's ${PIN}."
             echo "Update them, or the docs point people at the wrong release."
-            echo "Write @vX.Y.Z where you mean the pin in general — only a real"
-            echo "tag is checked."
+            echo "Write contrails==X.Y.Z where you mean the pin in general — only a"
+            echo "real version is checked."
             exit 1
           fi
           echo "every documented pin matches"
@@ -204,10 +205,7 @@ jobs:
           echo "every workflow is named after its file"
 
       - name: Install the contrail version this template pins
-        run: |
-          PIN=$(grep -o 'contrail\.git@v[0-9][0-9.]*' .github/workflows/sync.yml | head -1 | cut -d@ -f2)
-          echo "Pinned version: $PIN"
-          pip install "contrail @ git+https://github.com/atdr/contrail.git@${PIN}"
+        run: pip install -r requirements.txt
 
       - name: The shipped header must match that version's schema
         run: |
