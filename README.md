@@ -237,16 +237,18 @@ Already added it as `upstream` or `github`? See
 ```bash
 git fetch template
 git diff template/main -- .github/workflows/ requirements.txt \
-  .markdownlint-cli2.yaml .prettierrc.json .prettierignore
+  contrail-surface.json .markdownlint-cli2.yaml .prettierrc.json .prettierignore
 ```
 
 The files fall into two groups. Everything under `.github/workflows/`,
-`requirements.txt`, `README.md`, `AGENTS.md`, `.claude/` and the three
-Markdown config files (`.markdownlint-cli2.yaml`, `.prettierrc.json`,
-`.prettierignore`) are template-owned and safe to pull.
-`flight_emissions.csv` is yours — your real flight data — and should
-never be overwritten from the template; `last_checked.txt` is regenerated
-every run and can be ignored either way.
+`requirements.txt`, `contrail-surface.json`, `README.md`, `AGENTS.md`,
+`.claude/` and the three Markdown config files (`.markdownlint-cli2.yaml`,
+`.prettierrc.json`, `.prettierignore`) are template-owned and safe to pull.
+`contrail-surface.json` carries no data of yours either — it's a snapshot of
+the pinned release's shape, not your instance's — so it's as safe to pull
+wholesale as the Markdown config. `flight_emissions.csv` is yours — your real
+flight data — and should never be overwritten from the template;
+`last_checked.txt` is regenerated every run and can be ignored either way.
 
 `flighty/` is the one directory holding both: its `README.md` is
 template-owned, while any `FlightyExport-*.csv` beside it is yours. The
@@ -257,11 +259,14 @@ Pull just those files rather than merging the whole branch:
 
 ```bash
 git checkout template/main -- .github/workflows/ requirements.txt \
-  .markdownlint-cli2.yaml .prettierrc.json .prettierignore
+  contrail-surface.json .markdownlint-cli2.yaml .prettierrc.json .prettierignore
 # review the diff and re-apply your own version pin (the "contrails==X.Y.Z"
-# in requirements.txt) if the template's copy overwrote it, then:
+# in requirements.txt) if the template's copy overwrote it — and if you do,
+# regenerate contrail-surface.json to match that same pin too (recipe in
+# atdr/contrail's docs/contrail-gh.md), or surface-check.yml starts failing
+# on every future pull request for a version you're not even running, then:
 git add .github/workflows/ requirements.txt \
-  .markdownlint-cli2.yaml .prettierrc.json .prettierignore
+  contrail-surface.json .markdownlint-cli2.yaml .prettierrc.json .prettierignore
 git commit -m "Update workflows from contrail-gh"
 ```
 
@@ -275,6 +280,9 @@ listed one by one rather than pulling all of `.github/`, which would restore a
 `check-instance.yml` and `check-template.yml` all read the pin out of it rather
 than repeating it, and `check-template.yml` does nothing outside
 `atdr/contrail-gh` — so none of the three needs re-editing after a pull.
+`contrail-surface.json` carries nothing of yours either, but it does need to
+agree with whatever `requirements.txt` ends up pinning — see the note above if
+you re-apply your own pin after a pull.
 
 A pull can also rename a workflow, which changes what the **Actions** tab calls
 it. `README.md` isn't in the command above, so yours keeps whatever name it was

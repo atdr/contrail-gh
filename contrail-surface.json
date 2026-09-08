@@ -1,0 +1,45 @@
+{
+  "csv_fields": [
+    "sync_timestamp",
+    "source",
+    "source_id",
+    "also_seen_as",
+    "flight_date",
+    "carrier_code",
+    "flight_number",
+    "operating_carrier_code",
+    "operating_flight_number",
+    "origin",
+    "destination",
+    "departure_time",
+    "status",
+    "cabin_class_known",
+    "aircraft_type",
+    "flight_reason",
+    "emissions_source",
+    "model_version",
+    "emissions_data_source",
+    "contrails_impact",
+    "distance_km",
+    "aircraft_match",
+    "emissions_kg_first",
+    "emissions_kg_business",
+    "emissions_kg_premium_economy",
+    "emissions_kg_economy",
+    "emissions_kg_actual",
+    "raw_summary"
+  ],
+  "importers": [
+    "flighty_csv",
+    "tripit_ical"
+  ],
+  "providers": [
+    "tim"
+  ],
+  "raw_logs": null,
+  "storages": null,
+  "subcommands": [
+    "sources",
+    "sync"
+  ]
+}

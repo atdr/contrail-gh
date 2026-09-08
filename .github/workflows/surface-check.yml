@@ -1,0 +1,169 @@
+# The public-surface check, defined once and called from both check-template.yml
+# and check-instance.yml, the same way markdown.yml is. It fails when a pinned
+# contrail's public surface — CLI subcommands, and the importer/emissions
+# provider/storage/raw-log registry ids — no longer matches contrail-surface.json.
+#
+# This cannot know whether a surface change matters. A new CLI subcommand and its
+# private output is exactly a case it can't classify — only that "contrail's
+# public surface changed" is a fact a human should look at. See
+# docs/contrail-gh.md in atdr/contrail for the table of what a given kind of
+# change actually requires here. Satisfying this check never requires
+# configuring or testing whatever's new: an importer nothing in config
+# references is simply never invoked.
+#
+# A registry can be entirely absent from an older pin rather than merely
+# different — contrail.storage grew STORAGES and RAW_LOGS after 0.4.0, for
+# instance. That shows up here as null, not a crash: a registry going from null
+# to present is itself a surface change worth surfacing, the same as any other.
+#
+# subcommands come from real `contrail --help` output, not argparse internals:
+# the usage line's {a,b,c} is cli.py's own hand-written metavar, i.e. contrail's
+# own definition of its public surface. That's also why a hidden pre-0.5 alias
+# like `sources` (kept after `importers` was introduced) never disappears from
+# this check's radar unexpectedly — it's whatever contrail's author chose to
+# show, tracked exactly as shown.
+name: surface-check
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  surface:
+    name: public surface matches contrail-surface.json
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install the contrail version this branch pins
+        run: pip install -r requirements.txt
+
+      - name: The checked-in surface must match the pinned version's
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          import shutil
+          import subprocess
+          import sys
+
+          def optional_import(module, name):
+              # None means the pin predates this registry, not an error: an
+              # older pin failing to expose it is expected, and a newer one
+              # gaining it is exactly the kind of change this check exists to
+              # flag, via the ordinary diff below rather than a crash here.
+              try:
+                  mod = __import__(module, fromlist=[name])
+                  return sorted(getattr(mod, name))
+              except (ImportError, AttributeError):
+                  return None
+
+          from contrail.storage import CSV_FIELDS
+
+          contrail_bin = shutil.which("contrail")
+          if contrail_bin is None:
+              print("`contrail` isn't on PATH after `pip install -r requirements.txt`.")
+              print("Has contrail's console-script entry point changed?")
+              sys.exit(1)
+          help_text = subprocess.run(
+              [contrail_bin, "--help"], capture_output=True, text=True, check=True
+          ).stdout
+          match = re.search(r"\{([\w,-]+)\}", help_text)
+          if not match:
+              print("Couldn't find the subcommand list in `contrail --help` output.")
+              print("contrail's --help formatting may have changed — update this")
+              print("workflow's regex.")
+              sys.exit(1)
+          subcommands = sorted(match.group(1).split(","))
+
+          actual = {
+              "csv_fields": list(CSV_FIELDS),
+              "importers": optional_import("contrail.importers", "IMPORTERS"),
+              "providers": optional_import("contrail.emissions", "PROVIDERS"),
+              "storages": optional_import("contrail.storage", "STORAGES"),
+              "raw_logs": optional_import("contrail.storage", "RAW_LOGS"),
+              "subcommands": subcommands,
+          }
+          with open("contrail-surface.json") as f:
+              expected = json.load(f)
+
+          # Every key here fails the check the same way -- simplest, and it
+          # forces a look every time rather than only when the reader guesses
+          # correctly that this particular change matters. What differs by key
+          # is what "fixing it" actually means, so that guidance is attached
+          # per key below rather than left as one generic paragraph a reader
+          # (or an agent) can satisfy by pattern-matching the same regenerate
+          # command regardless of what changed.
+          GUIDANCE = {
+              "csv_fields": (
+                  "A schema change. Regenerate flight_emissions.csv's header "
+                  "too (the existing recipe), and check the 'A new column or "
+                  "behaviour' row for whether users should be told about it."
+              ),
+              "importers": (
+                  "A new or removed importer id. Default posture: scaffold it "
+                  "so instance owners don't have to invent the wiring "
+                  "themselves -- an env var in sync.yml and check-instance.yml "
+                  "at minimum, plus a directory, a .gitignore entry, and a "
+                  "check-template.yml guard if it reads a file "
+                  "(flighty_csv/flighty/ is the pattern). Don't stop at "
+                  "regenerating this file."
+              ),
+              "providers": (
+                  "A new or removed emissions provider id. Same posture as "
+                  "importers: wire it (an env var) so it's actually usable, "
+                  "don't just acknowledge it exists."
+              ),
+              "storages": (
+                  "A new or removed storage id. Wire it (an env var) if "
+                  "contrail exposes a way to select it, but unlike importers "
+                  "this doesn't need repo-tree scaffolding -- a non-local "
+                  "storage doesn't write into the template."
+              ),
+              "raw_logs": (
+                  "A new or removed raw-log id. Same posture as storages -- "
+                  "unless the new implementation is file-based in the repo, "
+                  "like jsonl, in which case treat it like a file-reading "
+                  "importer instead."
+              ),
+              "subcommands": (
+                  "A new or removed CLI subcommand. No default action -- this "
+                  "is a judgment call every time. Read what it actually does "
+                  "(its own --help, the CHANGELOG entry for this release) "
+                  "before deciding: should instance owners be actively shown "
+                  "how to use it (Passport is the worked example -- "
+                  "gitignored, documented), or is this internal/diagnostic "
+                  "tooling that needs no template reaction? Don't assume "
+                  "either answer."
+              ),
+          }
+
+          if actual != expected:
+              print("contrail's public surface no longer matches contrail-surface.json.")
+              print()
+              for key in sorted(set(actual) | set(expected)):
+                  a, e = actual.get(key), expected.get(key)
+                  if a != e:
+                      a_list, e_list = a or [], e or []
+                      added = [x for x in a_list if x not in e_list]
+                      removed = [x for x in e_list if x not in a_list]
+                      print(f"{key}: +{added} -{removed}")
+                      print(f"  {GUIDANCE[key]}")
+                      print()
+              print("Read the table in atdr/contrail's docs/contrail-gh.md for the full")
+              print("picture. Regenerating contrail-surface.json (recipe in that doc) is")
+              print("the last step, not the fix -- it only records that this diff was")
+              print("reviewed. A PR that updates the file without the change the guidance")
+              print("above calls for is incomplete.")
+              sys.exit(1)
+
+          print(f"public surface matches ({len(actual['csv_fields'])} CSV fields, "
+                f"{len(actual['subcommands'])} subcommands)")
+          PY

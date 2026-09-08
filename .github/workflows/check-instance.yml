@@ -141,3 +141,9 @@ jobs:
   markdown:
     if: github.repository != 'atdr/contrail-gh'
     uses: ./.github/workflows/markdown.yml
+
+  # The mirror of check-template.yml's call: the same surface check, against
+  # whatever version your pull request is bumping requirements.txt to.
+  surface:
+    if: github.repository != 'atdr/contrail-gh'
+    uses: ./.github/workflows/surface-check.yml

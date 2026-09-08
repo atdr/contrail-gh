@@ -35,12 +35,10 @@ jobs:
       # exactly how the README ended up two releases behind once already.
       - name: The docs must quote the pin requirements.txt actually uses
         run: |
-          PIN=$(grep -oE '^contrails==[0-9][0-9.]*' requirements.txt | head -1 | cut -d= -f3)
-          if [ -z "$PIN" ]; then
-            echo "No contrails pin found in requirements.txt. Has the file changed shape?"
+          PIN=$(scripts/read-pin.sh) || {
             echo "This check and the one below both read it, so neither can work now."
             exit 1
-          fi
+          }
           echo "requirements.txt pins $PIN"
 
           STATUS=0
@@ -115,34 +113,37 @@ jobs:
           fi
           echo "check-instance.yml is gated and reads what sync.yml reads"
 
-      # markdown.yml is called by both check-template.yml and check-instance.yml
-      # so that the template and every repo created from it check their docs the
-      # same way. The call from check-instance.yml is the half that can never be
-      # seen from here — its guard skips it in atdr/contrail-gh — so drop either
-      # call and the two sides silently diverge, with nothing failing.
-      - name: markdown.yml must exist, and be called by both checks
+      # markdown.yml and surface-check.yml are each called by both
+      # check-template.yml and check-instance.yml so that the template and every
+      # repo created from it check the same things the same way. The call from
+      # check-instance.yml is the half that can never be seen from here — its
+      # guard skips it in atdr/contrail-gh — so drop either call and the two
+      # sides silently diverge, with nothing failing.
+      - name: Reusable checks must exist, and be called by both checks
         run: |
-          F=.github/workflows/markdown.yml
-          if [ ! -f "$F" ]; then
-            echo "$F is missing. Both check-template.yml and check-instance.yml"
-            echo "call it, so neither can run without it."
-            exit 1
-          fi
-
           STATUS=0
-          for CALLER in check-template check-instance; do
-            if ! grep -qF 'uses: ./.github/workflows/markdown.yml' \
-                 ".github/workflows/${CALLER}.yml"; then
-              echo "${CALLER}.yml no longer calls markdown.yml, so it no longer"
-              echo "checks its Markdown. Restore the job or delete markdown.yml"
-              echo "and the other call with it."
+          for F in markdown surface-check; do
+            PATH_F=".github/workflows/${F}.yml"
+            if [ ! -f "$PATH_F" ]; then
+              echo "$PATH_F is missing. Both check-template.yml and check-instance.yml"
+              echo "call it, so neither can run without it."
               STATUS=1
+              continue
             fi
+            for CALLER in check-template check-instance; do
+              if ! grep -qF "uses: ./.github/workflows/${F}.yml" \
+                   ".github/workflows/${CALLER}.yml"; then
+                echo "${CALLER}.yml no longer calls ${F}.yml, so it no longer runs"
+                echo "that check. Restore the job or delete ${F}.yml and the other"
+                echo "call with it."
+                STATUS=1
+              fi
+            done
           done
 
-          # The configuration ships beside the workflow and is useless without
-          # it: an instance that pulled markdown.yml alone would lint against
-          # markdownlint's defaults rather than these settings.
+          # markdown.yml's configuration ships beside the workflow and is
+          # useless without it: an instance that pulled markdown.yml alone would
+          # lint against markdownlint's defaults rather than these settings.
           for CONF in .markdownlint-cli2.yaml .prettierrc.json .prettierignore; do
             if [ ! -f "$CONF" ]; then
               echo "$CONF is missing, so markdown.yml would run on defaults."
@@ -150,10 +151,17 @@ jobs:
             fi
           done
 
+          # surface-check.yml's baseline ships beside it the same way.
+          if [ ! -f contrail-surface.json ]; then
+            echo "contrail-surface.json is missing, so surface-check.yml has nothing"
+            echo "to compare the pinned release against."
+            STATUS=1
+          fi
+
           if [ "$STATUS" -ne 0 ]; then
             exit 1
           fi
-          echo "markdown.yml exists, is called by both checks, and has its config"
+          echo "markdown.yml and surface-check.yml exist, are called by both checks, and have their config"
 
       # A check is only useful if a reader can tell which file produced it.
       # GitHub labels a check "<workflow name> / <job name>", never the
@@ -282,3 +290,10 @@ jobs:
   markdown:
     if: github.repository == 'atdr/contrail-gh'
     uses: ./.github/workflows/markdown.yml
+
+  # Defined in surface-check.yml and called from check-instance.yml too, so the
+  # template and every repo created from it catch the same structural changes
+  # in the pinned release.
+  surface:
+    if: github.repository == 'atdr/contrail-gh'
+    uses: ./.github/workflows/surface-check.yml
