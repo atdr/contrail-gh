@@ -35,12 +35,10 @@ jobs:
       # exactly how the README ended up two releases behind once already.
       - name: The docs must quote the pin requirements.txt actually uses
         run: |
-          PIN=$(grep -oE '^contrails==[0-9][0-9.]*' requirements.txt | head -1 | cut -d= -f3)
-          if [ -z "$PIN" ]; then
-            echo "No contrails pin found in requirements.txt. Has the file changed shape?"
+          PIN=$(scripts/read-pin.sh) || {
             echo "This check and the one below both read it, so neither can work now."
             exit 1
-          fi
+          }
           echo "requirements.txt pins $PIN"
 
           STATUS=0

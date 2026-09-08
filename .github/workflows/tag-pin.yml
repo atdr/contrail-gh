@@ -44,11 +44,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PIN=$(grep -oE '^contrails==[0-9][0-9.]*' requirements.txt | head -1 | cut -d= -f3)
-          if [ -z "$PIN" ]; then
-            echo "No contrails pin found in requirements.txt. Has the file changed shape?"
-            exit 1
-          fi
+          PIN=$(scripts/read-pin.sh)
           echo "requirements.txt now pins $PIN"
 
           if git rev-parse "v$PIN" >/dev/null 2>&1; then
