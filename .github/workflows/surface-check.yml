@@ -94,24 +94,74 @@ jobs:
           with open("contrail-surface.json") as f:
               expected = json.load(f)
 
+          # Every key here fails the check the same way -- simplest, and it
+          # forces a look every time rather than only when the reader guesses
+          # correctly that this particular change matters. What differs by key
+          # is what "fixing it" actually means, so that guidance is attached
+          # per key below rather than left as one generic paragraph a reader
+          # (or an agent) can satisfy by pattern-matching the same regenerate
+          # command regardless of what changed.
+          GUIDANCE = {
+              "csv_fields": (
+                  "A schema change. Regenerate flight_emissions.csv's header "
+                  "too (the existing recipe), and check the 'A new column or "
+                  "behaviour' row for whether users should be told about it."
+              ),
+              "importers": (
+                  "A new or removed importer id. Default posture: scaffold it "
+                  "so instance owners don't have to invent the wiring "
+                  "themselves -- an env var in sync.yml and check-instance.yml "
+                  "at minimum, plus a directory, a .gitignore entry, and a "
+                  "check-template.yml guard if it reads a file "
+                  "(flighty_csv/flighty/ is the pattern). Don't stop at "
+                  "regenerating this file."
+              ),
+              "providers": (
+                  "A new or removed emissions provider id. Same posture as "
+                  "importers: wire it (an env var) so it's actually usable, "
+                  "don't just acknowledge it exists."
+              ),
+              "storages": (
+                  "A new or removed storage id. Wire it (an env var) if "
+                  "contrail exposes a way to select it, but unlike importers "
+                  "this doesn't need repo-tree scaffolding -- a non-local "
+                  "storage doesn't write into the template."
+              ),
+              "raw_logs": (
+                  "A new or removed raw-log id. Same posture as storages -- "
+                  "unless the new implementation is file-based in the repo, "
+                  "like jsonl, in which case treat it like a file-reading "
+                  "importer instead."
+              ),
+              "subcommands": (
+                  "A new or removed CLI subcommand. No default action -- this "
+                  "is a judgment call every time. Read what it actually does "
+                  "(its own --help, the CHANGELOG entry for this release) "
+                  "before deciding: should instance owners be actively shown "
+                  "how to use it (Passport is the worked example -- "
+                  "gitignored, documented), or is this internal/diagnostic "
+                  "tooling that needs no template reaction? Don't assume "
+                  "either answer."
+              ),
+          }
+
           if actual != expected:
               print("contrail's public surface no longer matches contrail-surface.json.")
+              print()
               for key in sorted(set(actual) | set(expected)):
                   a, e = actual.get(key), expected.get(key)
                   if a != e:
                       a_list, e_list = a or [], e or []
                       added = [x for x in a_list if x not in e_list]
                       removed = [x for x in e_list if x not in a_list]
-                      print(f"  {key}: +{added} -{removed}")
-              print()
-              print("Something structurally new (or removed) landed. This only means")
-              print("the id/subcommand exists now — it does not mean you need to")
-              print("configure or test it (an importer nothing in config references")
-              print("is never invoked). Before merging, check the table in")
-              print("atdr/contrail's docs/contrail-gh.md for whether it needs a")
-              print("matching change here (Passport is the worked example there).")
-              print("Then regenerate contrail-surface.json (recipe in that doc) and")
-              print("commit it alongside the pin bump.")
+                      print(f"{key}: +{added} -{removed}")
+                      print(f"  {GUIDANCE[key]}")
+                      print()
+              print("Read the table in atdr/contrail's docs/contrail-gh.md for the full")
+              print("picture. Regenerating contrail-surface.json (recipe in that doc) is")
+              print("the last step, not the fix -- it only records that this diff was")
+              print("reviewed. A PR that updates the file without the change the guidance")
+              print("above calls for is incomplete.")
               sys.exit(1)
 
           print(f"public surface matches ({len(actual['csv_fields'])} CSV fields, "
