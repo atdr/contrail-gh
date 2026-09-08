@@ -129,21 +129,26 @@ load-bearing:**
 | Workflow             | Guard                                         | Runs in               |
 | -------------------- | --------------------------------------------- | --------------------- |
 | `check-template.yml` | `if: github.repository == 'atdr/contrail-gh'` | the template only     |
+| `tag-pin.yml`        | `if: github.repository == 'atdr/contrail-gh'` | the template only     |
 | `sync.yml`           | `if: github.repository != 'atdr/contrail-gh'` | instances only        |
 | `check-instance.yml` | `if: github.repository != 'atdr/contrail-gh'` | instances only        |
 | `markdown.yml`       | none — it is `workflow_call` only             | wherever it is called |
+| `surface-check.yml`  | none — it is `workflow_call` only             | wherever it is called |
 
 Removing one produces a workflow that fails forever in the wrong repo: the
-template checks assume a header-only CSV and would fail against real data, while
-the sync and the pull request check have no secrets and nothing to log in
-`atdr/contrail-gh`. The three guarded ones key off the repository name, so an
-instance is simply "not the template" — no per-user configuration needed.
+template checks assume a header-only CSV and would fail against real data, the
+sync and the pull request check have no secrets and nothing to log in
+`atdr/contrail-gh`, and `tag-pin.yml` tags contrail-gh's own history, which an
+instance has no business doing to itself. The four guarded ones key off the
+repository name, so an instance is simply "not the template" — no per-user
+configuration needed.
 
-`markdown.yml` is the exception, and deliberately so: it carries no guard
-because it never triggers on its own. `check-template.yml` and
-`check-instance.yml` each call it behind their own guard, so it runs in
-`atdr/contrail-gh` and in every repo created from the template, from one
-definition. That is the point — a check defined twice is a check that drifts.
+`markdown.yml` and `surface-check.yml` are the exception, and deliberately so:
+neither carries a guard because neither ever triggers on its own.
+`check-template.yml` and `check-instance.yml` each call them behind their own
+guard, so they run in `atdr/contrail-gh` and in every repo created from the
+template, from one definition each. That is the point — a check defined twice
+is a check that drifts.
 
 `check-instance.yml` is the one `atdr/contrail-gh` can never try out, because
 its guard skips it there on every run. `check-template.yml` compensates with a
