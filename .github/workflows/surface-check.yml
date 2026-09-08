@@ -1,0 +1,115 @@
+# The public-surface check, defined once and called from both check-template.yml
+# and check-instance.yml, the same way markdown.yml is. It fails when a pinned
+# contrail's public surface — CLI subcommands, and the importer/emissions
+# provider/storage/raw-log registry ids — no longer matches contrail-surface.json.
+#
+# This cannot know whether a surface change matters. A new CLI subcommand and its
+# private output is exactly a case it can't classify — only that "contrail's
+# public surface changed" is a fact a human should look at. See
+# docs/contrail-gh.md in atdr/contrail for the table of what a given kind of
+# change actually requires here. Satisfying this check never requires
+# configuring or testing whatever's new: an importer nothing in config
+# references is simply never invoked.
+#
+# A registry can be entirely absent from an older pin rather than merely
+# different — contrail.storage grew STORAGES and RAW_LOGS after 0.4.0, for
+# instance. That shows up here as null, not a crash: a registry going from null
+# to present is itself a surface change worth surfacing, the same as any other.
+#
+# subcommands come from real `contrail --help` output, not argparse internals:
+# the usage line's {a,b,c} is cli.py's own hand-written metavar, i.e. contrail's
+# own definition of its public surface. That's also why a hidden pre-0.5 alias
+# like `sources` (kept after `importers` was introduced) never disappears from
+# this check's radar unexpectedly — it's whatever contrail's author chose to
+# show, tracked exactly as shown.
+name: surface-check
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  surface:
+    name: public surface matches contrail-surface.json
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install the contrail version this branch pins
+        run: pip install -r requirements.txt
+
+      - name: The checked-in surface must match the pinned version's
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          import shutil
+          import subprocess
+          import sys
+
+          def optional_import(module, name):
+              # None means the pin predates this registry, not an error: an
+              # older pin failing to expose it is expected, and a newer one
+              # gaining it is exactly the kind of change this check exists to
+              # flag, via the ordinary diff below rather than a crash here.
+              try:
+                  mod = __import__(module, fromlist=[name])
+                  return sorted(getattr(mod, name))
+              except (ImportError, AttributeError):
+                  return None
+
+          from contrail.storage import CSV_FIELDS
+
+          contrail_bin = shutil.which("contrail")
+          help_text = subprocess.run(
+              [contrail_bin, "--help"], capture_output=True, text=True, check=True
+          ).stdout
+          match = re.search(r"\{([\w,-]+)\}", help_text)
+          if not match:
+              print("Couldn't find the subcommand list in `contrail --help` output.")
+              print("contrail's --help formatting may have changed — update this")
+              print("workflow's regex.")
+              sys.exit(1)
+          subcommands = sorted(match.group(1).split(","))
+
+          actual = {
+              "csv_fields": list(CSV_FIELDS),
+              "importers": optional_import("contrail.importers", "IMPORTERS"),
+              "providers": optional_import("contrail.emissions", "PROVIDERS"),
+              "storages": optional_import("contrail.storage", "STORAGES"),
+              "raw_logs": optional_import("contrail.storage", "RAW_LOGS"),
+              "subcommands": subcommands,
+          }
+          with open("contrail-surface.json") as f:
+              expected = json.load(f)
+
+          if actual != expected:
+              print("contrail's public surface no longer matches contrail-surface.json.")
+              for key in sorted(set(actual) | set(expected)):
+                  a, e = actual.get(key), expected.get(key)
+                  if a != e:
+                      a_list, e_list = a or [], e or []
+                      added = [x for x in a_list if x not in e_list]
+                      removed = [x for x in e_list if x not in a_list]
+                      print(f"  {key}: +{added} -{removed}")
+              print()
+              print("Something structurally new (or removed) landed. This only means")
+              print("the id/subcommand exists now — it does not mean you need to")
+              print("configure or test it (an importer nothing in config references")
+              print("is never invoked). Before merging, check the table in")
+              print("atdr/contrail's docs/contrail-gh.md for whether it needs a")
+              print("matching change here (Passport is the worked example there).")
+              print("Then regenerate contrail-surface.json (recipe in that doc) and")
+              print("commit it alongside the pin bump.")
+              sys.exit(1)
+
+          print(f"public surface matches ({len(actual['csv_fields'])} CSV fields, "
+                f"{len(actual['subcommands'])} subcommands)")
+          PY

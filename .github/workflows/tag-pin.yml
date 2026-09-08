@@ -1,0 +1,92 @@
+# Tags a merge commit vX.Y.Z whenever requirements.txt's pin moves to a new
+# minor or major version — never for a patch-only bump. contrail's
+# release-please-config.json sets bump-minor-pre-major: true and
+# bump-patch-for-minor-pre-major: false, so while contrail is pre-1.0, a feat or
+# a breaking change bumps minor (major stays 0 until a deliberate 1.0 cut) and a
+# fix or perf bumps patch only. "Minor-or-major" already reliably means
+# "something feature-level or breaking landed"; the tag doesn't need to inspect
+# commit messages, just compare version numbers.
+#
+# This tag is a convenience pointer for humans — "this template state targets
+# contrail vX.Y" — not a substitute for surface-check.yml, which still runs on
+# every bump regardless of size. contrail-gh has no semver of its own; the tag
+# borrows contrail's version purely for traceability across two repos with no
+# other way to correlate history.
+#
+# Only meaningful in the template itself: an instance pulls this file too (it's
+# template-owned, like sync.yml), but nothing here tags that instance's own
+# history — it exists to tag contrail-gh's history, not a private repo's.
+name: tag-pin
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - requirements.txt
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: tag a minor or major contrail bump
+    timeout-minutes: 10
+    if: github.repository == 'atdr/contrail-gh'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The highest-tag comparison below reads the whole tag history, not
+          # just this tree.
+          fetch-depth: 0
+
+      - name: Tag the merge commit if this bump is minor or major
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PIN=$(grep -oE '^contrails==[0-9][0-9.]*' requirements.txt | head -1 | cut -d= -f3)
+          if [ -z "$PIN" ]; then
+            echo "No contrails pin found in requirements.txt. Has the file changed shape?"
+            exit 1
+          fi
+          echo "requirements.txt now pins $PIN"
+
+          if git rev-parse "v$PIN" >/dev/null 2>&1; then
+            echo "v$PIN is already tagged. Nothing to do."
+            exit 0
+          fi
+
+          # Compared against the highest existing tag, not just the previous
+          # commit: robust to reruns, and reads as "is this minor line already
+          # tagged" rather than "did the immediately preceding commit differ".
+          HIGHEST=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' \
+            | sed 's/^v//' \
+            | sort -t. -k1,1n -k2,2n -k3,3n \
+            | tail -1)
+
+          if [ -z "$HIGHEST" ]; then
+            echo "No existing vX.Y.Z tags to compare against, so this run cannot tell"
+            echo "whether v$PIN is a minor/major bump. See 'Tagging contrail-gh by"
+            echo "version' in atdr/contrail's docs/contrail-gh.md for the one-time"
+            echo "bootstrap tag this needs before it can tag anything automatically."
+            exit 0
+          fi
+
+          NEW_MAJOR=$(echo "$PIN" | cut -d. -f1)
+          NEW_MINOR=$(echo "$PIN" | cut -d. -f2)
+          OLD_MAJOR=$(echo "$HIGHEST" | cut -d. -f1)
+          OLD_MINOR=$(echo "$HIGHEST" | cut -d. -f2)
+
+          if [ "$NEW_MAJOR" -gt "$OLD_MAJOR" ] || \
+             { [ "$NEW_MAJOR" -eq "$OLD_MAJOR" ] && [ "$NEW_MINOR" -gt "$OLD_MINOR" ]; }; then
+            echo "v$PIN is a minor-or-major bump over the highest existing tag v$HIGHEST."
+            gh release create "v$PIN" \
+              --target "${{ github.sha }}" \
+              --title "v$PIN" \
+              --notes "Tracks contrail v$PIN: https://github.com/atdr/contrail/releases/tag/v$PIN
+
+          contrail-gh has no semver of its own; this tag borrows contrail's version
+          purely for traceability."
+          else
+            echo "v$PIN is not a minor-or-major bump over v$HIGHEST (patch-only). Not tagging."
+          fi
