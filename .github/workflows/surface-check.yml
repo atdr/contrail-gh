@@ -68,6 +68,10 @@ jobs:
           from contrail.storage import CSV_FIELDS
 
           contrail_bin = shutil.which("contrail")
+          if contrail_bin is None:
+              print("`contrail` isn't on PATH after `pip install -r requirements.txt`.")
+              print("Has contrail's console-script entry point changed?")
+              sys.exit(1)
           help_text = subprocess.run(
               [contrail_bin, "--help"], capture_output=True, text=True, check=True
           ).stdout
