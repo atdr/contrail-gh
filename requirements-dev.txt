@@ -1,0 +1,22 @@
+# The Markdown tooling markdown.yml installs. Separate from requirements.txt so
+# that a sync never installs a formatter: sync.yml, check-instance.yml and
+# check-template.yml all read the contrail pin out of that file, and this one is
+# read by markdown.yml alone.
+#
+# Dependabot's pip entry in .github/dependabot.yml covers this file too, so the
+# pins below are bumped by pull request rather than by hand. Prettier's pin
+# could not be — it has no first-party action, so it lived in a `run:` line.
+#
+# Pinned rather than floating: a formatter that changes its output in a patch
+# release turns unrelated pull requests red.
+mdformat==1.0.0
+# Tables. Core CommonMark has none, and without this every padded table in the
+# repo is reflowed into unpadded pipes.
+mdformat-gfm==1.0.0
+# YAML frontmatter. Without this mdformat does not recognise it and rewrites
+# the block into a horizontal rule and a heading, which silently breaks the
+# skill in .claude/. Prettier understood frontmatter natively; mdformat needs
+# telling. Extensions like this are fine — it is *codeformatter* plugins
+# (mdformat-black and the like) that must never be added, because mdformat
+# enables every installed one and would reformat the code inside fences.
+mdformat-frontmatter==2.1.2

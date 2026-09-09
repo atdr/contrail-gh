@@ -161,10 +161,11 @@ emissions API.
 
 The call to `markdown.yml` from `check-instance.yml` has the same blind spot,
 and `check-template.yml` checks it the same way: `markdown.yml` must exist, both
-workflows must still call it, and the three config files it reads
-(`.markdownlint-cli2.yaml`, `.prettierrc.json`, `.prettierignore`) must be
-present. Without that last one an instance can pull the workflow alone and lint
-against markdownlint's defaults.
+workflows must still call it, and the files it reads
+(`.markdownlint-cli2.yaml`, `.mdformat.toml`, `requirements-dev.txt`) must be
+present. Without that last group an instance can pull the workflow alone and
+lint against markdownlint's defaults, or fail outright with no mdformat to
+install.
 
 It is triggered by `pull_request` alone. A `workflow_dispatch` run would carry
 the same name while checking less — the data-loss steps have no base commit to
@@ -219,15 +220,13 @@ fails the build when a workflow's name and its filename disagree; the job names
 are a convention it does not check.
 
 **Every job that can carry `timeout-minutes` sets one.** GitHub's default is six
-hours, and the failure that matters here is a stall rather than an error: `npx`
-fetching Prettier and `pip` fetching contrail both hang instead of failing.
-Prettier's fetch stalls intermittently and expensively: the Markdown job takes
-twelve seconds when the fetch is clean, and when it is not it sits silent for
-exactly 301 seconds, npm's 300s `fetch-timeout` expiring and the retry then
-succeeding. A timeout bounds the fetch that never recovers, which is all a
-timeout can do; ending the recurring five minutes needs the download cached
-instead, which is issue #8. The three
-checks allow ten minutes. `sync.yml` allows
+hours, and the failure that matters here is a stall rather than an error: a
+`pip` fetch hangs instead of failing. The Markdown job used to be the worst of
+these, sitting silent for exactly 301 seconds whenever `npx` refetched Prettier
+and npm's 300s `fetch-timeout` expired, against a clean run of twelve. Moving
+that job to mdformat, installed from `requirements-dev.txt`, ended the
+recurring five minutes; a timeout still bounds the fetch that never recovers,
+which is all a timeout can do. The three checks allow ten minutes. `sync.yml` allows
 sixty, and that one is deliberately generous — a sync killed mid-run commits
 nothing, so every emissions figure it had already fetched is lost, and TIM will
 not price a flight once it has departed. In a repo created from
@@ -236,17 +235,25 @@ public `atdr/contrail-gh` never pays. The setting cannot go on a job that calls
 `markdown.yml` — a job with `uses:` takes no `timeout-minutes` — so it lives on
 the job inside `markdown.yml`, which covers both callers.
 
-**Markdown is formatted, not hand-aligned.** Prettier owns table padding and
+**Markdown is formatted, not hand-aligned.** mdformat owns table padding and
 whitespace, markdownlint-cli2 owns line length and the rest, and
 `markdown.yml` runs both on every pull request. Run
-`npx prettier@3.9.6 --write "**/*.md"` rather than lining a table up by hand.
-Prose wraps at 80, except `README.md`, which wraps at 100 and says so in a
-`markdownlint-configure-file` comment at its foot. `CLAUDE.md` is excluded from
-both tools because it is a symlink to this file.
+`pip install -r requirements-dev.txt && mdformat .` rather than lining a table
+up by hand. Prose wraps at 80, except `README.md`, which wraps at 100 and says
+so in a `markdownlint-configure-file` comment at its foot — a per-file override
+only markdownlint honours, which is one reason both tools are still here.
+`CLAUDE.md` is excluded from both because it is a symlink to this file.
 
-The same three config files exist in `atdr/contrail`, as copies. Three
-repositories cannot share one, so a rule changed in either place has to be
-changed in the other or they start disagreeing about what correct Markdown is.
+mdformat needs Python 3.13, because `.mdformat.toml` sets `exclude` and that key
+errors below it. `markdown.yml` pins that version. It also needs its plugins:
+without `mdformat-gfm` every padded table is reflowed into unpadded pipes, and
+without `mdformat-frontmatter` the YAML block at the top of a skill file is
+rewritten into a horizontal rule and a heading. Both are pinned in
+`requirements-dev.txt`, which says so.
+
+The same config files exist in `atdr/contrail`, as copies. Three repositories
+cannot share one, so a rule changed in either place has to be changed in the
+other or they start disagreeing about what correct Markdown is.
 
 ## When contrail changes
 

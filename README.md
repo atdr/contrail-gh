@@ -237,13 +237,14 @@ Already added it as `upstream` or `github`? See
 ```bash
 git fetch template
 git diff template/main -- .github/workflows/ requirements.txt \
-  contrail-surface.json .markdownlint-cli2.yaml .prettierrc.json .prettierignore
+  contrail-surface.json .markdownlint-cli2.yaml .mdformat.toml \
+  requirements-dev.txt
 ```
 
 The files fall into two groups. Everything under `.github/workflows/`,
 `requirements.txt`, `contrail-surface.json`, `README.md`, `AGENTS.md`,
-`.claude/` and the three Markdown config files (`.markdownlint-cli2.yaml`,
-`.prettierrc.json`, `.prettierignore`) are template-owned and safe to pull.
+`.claude/` and the Markdown config files (`.markdownlint-cli2.yaml`,
+`.mdformat.toml`, `requirements-dev.txt`) are template-owned and safe to pull.
 `contrail-surface.json` carries no data of yours either — it's a snapshot of
 the pinned release's shape, not your instance's — so it's as safe to pull
 wholesale as the Markdown config. `flight_emissions.csv` is yours — your real
@@ -259,22 +260,29 @@ Pull just those files rather than merging the whole branch:
 
 ```bash
 git checkout template/main -- .github/workflows/ requirements.txt \
-  contrail-surface.json .markdownlint-cli2.yaml .prettierrc.json .prettierignore
+  contrail-surface.json .markdownlint-cli2.yaml .mdformat.toml \
+  requirements-dev.txt
 # review the diff and re-apply your own version pin (the "contrails==X.Y.Z"
 # in requirements.txt) if the template's copy overwrote it — and if you do,
 # regenerate contrail-surface.json to match that same pin too (recipe in
 # atdr/contrail's docs/contrail-gh.md), or surface-check.yml starts failing
 # on every future pull request for a version you're not even running, then:
 git add .github/workflows/ requirements.txt \
-  contrail-surface.json .markdownlint-cli2.yaml .prettierrc.json .prettierignore
+  contrail-surface.json .markdownlint-cli2.yaml .mdformat.toml \
+  requirements-dev.txt
 git commit -m "Update workflows from contrail-gh"
 ```
 
 The config files are named alongside the workflows because `markdown.yml` reads
 them: pull the workflow without them and the Markdown check runs against
-markdownlint's defaults instead of the settings it was written for. They are
+markdownlint's defaults instead of the settings it was written for, or fails
+outright with no `requirements-dev.txt` to install mdformat from. They are
 listed one by one rather than pulling all of `.github/`, which would restore a
 `dependabot.yml` you had deleted.
+
+`requirements-dev.txt` holds the Markdown tooling only, and carries nothing of
+yours. Your contrail pin lives in `requirements.txt`, which a Markdown pull
+never touches.
 
 `requirements.txt` is the only one carrying anything of yours. `sync.yml`,
 `check-instance.yml` and `check-template.yml` all read the pin out of it rather
@@ -337,6 +345,7 @@ workflow from the Actions tab.
 MIT — see [LICENSE](LICENSE).
 
 <!-- This file is wrapped at 100, not the 80 the rest of the repo uses. -->
+
 <!-- markdownlint-configure-file {
   "MD013": { "line_length": 100, "tables": false, "code_blocks": false }
 } -->
