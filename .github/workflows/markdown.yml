@@ -7,8 +7,8 @@
 # things.
 #
 # Two tools, because neither does the other's job: markdownlint has no rule
-# that pads a table cell, and Prettier has no opinion on line length. Settings
-# for both live in .markdownlint-cli2.yaml and .prettierrc.json at the root.
+# that pads a table cell, and mdformat has no opinion on line length. Settings
+# for both live in .markdownlint-cli2.yaml and .mdformat.toml at the root.
 #
 # In your own repo this runs on your docs, including anything you have added.
 # If you would rather it did not, delete the `markdown` job from
@@ -24,13 +24,9 @@ permissions:
 jobs:
   markdown:
     name: lint
-    # `npx` fetches Prettier from the registry on every run, and a stalled
-    # fetch hangs rather than failing. It stalls intermittently and expensively:
-    # the job takes twelve seconds when the fetch is clean, and when it is not
-    # it sits silent for exactly 301 seconds after "will be installed", npm's
-    # 300s fetch-timeout expiring and the retry then succeeding. Ten minutes
-    # bounds the fetch that never recovers, which is all a timeout can do here.
-    # GitHub's default is six hours. Caching the download is issue #8.
+    # A stalled fetch hangs rather than failing, and ten minutes bounds the one
+    # that never recovers, which is all a timeout can do. GitHub's default is
+    # six hours.
     #
     # It has to live here rather than on the jobs that call this workflow: a
     # job with `uses:` takes no timeout-minutes of its own. Defining it once
@@ -40,13 +36,23 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # An action rather than `npx`, so the github-actions dependabot ecosystem
-      # in .github/dependabot.yml keeps it current. Prettier has no first-party
-      # action, so its pin below is a hand edit.
+      # A JavaScript action, so GitHub runs it on the runner's own Node: no
+      # toolchain to install, nothing fetched from a registry, and the
+      # github-actions dependabot ecosystem in .github/dependabot.yml keeps the
+      # pin current. That is why there is no setup-node step here.
       - uses: DavidAnson/markdownlint-cli2-action@v24
 
-      - uses: actions/setup-node@v7
+      # 3.13 because .mdformat.toml sets `exclude`, which errors below it.
+      - uses: actions/setup-python@v7
         with:
-          node-version: "24"
+          python-version: "3.13"
 
-      - run: npx prettier@3.9.6 --check "**/*.md"
+      # requirements-dev.txt, not requirements.txt: that one carries the
+      # contrail pin a sync installs, and has no business holding a formatter.
+      # This replaced `npx prettier@3.9.6`, which refetched Prettier from the
+      # npm registry every run and sat silent for exactly 301 seconds often
+      # enough to dominate a job that otherwise takes twelve.
+      - run: pip install -r requirements-dev.txt
+
+      # No filter: .mdformat.toml's `exclude` covers CLAUDE.md.
+      - run: mdformat --check .

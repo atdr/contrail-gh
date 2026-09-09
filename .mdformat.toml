@@ -1,0 +1,20 @@
+# Markdown formatting. mdformat owns table padding and whitespace;
+# markdownlint-cli2 owns line length and the rest, in .markdownlint-cli2.yaml.
+# Neither is redundant: markdownlint has no rule that pads a table cell, and
+# mdformat has no opinion on line length. Both run on every pull request, in
+# atdr/contrail-gh and in each repo created from it, via
+# .github/workflows/markdown.yml.
+#
+# This file arrives in your own repo as a copy, not a link. Edit it freely —
+# it describes your docs once the repo is yours.
+
+# Without this, every ordered list is renumbered to `1.` on the next run.
+number = true
+
+# `exclude` errors on Python below 3.13, which is why markdown.yml pins that
+# version. It applies to paths passed explicitly as well as to a directory
+# walk, so this list is the whole story wherever mdformat is invoked from.
+exclude = [
+  # A symlink to AGENTS.md. Formatting it writes the same file twice.
+  "CLAUDE.md",
+]

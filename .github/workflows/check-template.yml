@@ -144,7 +144,10 @@ jobs:
           # markdown.yml's configuration ships beside the workflow and is
           # useless without it: an instance that pulled markdown.yml alone would
           # lint against markdownlint's defaults rather than these settings.
-          for CONF in .markdownlint-cli2.yaml .prettierrc.json .prettierignore; do
+          # requirements-dev.txt is in the list because markdown.yml installs
+          # mdformat from it — without that file the job fails outright rather
+          # than quietly checking the wrong thing.
+          for CONF in .markdownlint-cli2.yaml .mdformat.toml requirements-dev.txt; do
             if [ ! -f "$CONF" ]; then
               echo "$CONF is missing, so markdown.yml would run on defaults."
               STATUS=1

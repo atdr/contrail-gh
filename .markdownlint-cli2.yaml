@@ -1,16 +1,16 @@
-# Markdown rules. Prettier owns whitespace and table alignment; this file owns
-# what Prettier cannot express. Both run on every pull request, in
+# Markdown rules. mdformat owns whitespace and table alignment; this file owns
+# what mdformat cannot express. Both run on every pull request, in
 # atdr/contrail-gh and in each repo created from it, via
 # .github/workflows/markdown.yml.
 #
 # This file arrives in your own repo as a copy, not a link. Edit it freely —
 # it describes your docs once the repo is yours.
 #
-# .prettierrc.json carries two settings and no room to explain them:
-# `proseWrap: preserve`, because the prose here is wrapped by hand at
-# deliberate points and `always` would rewrap every paragraph; and
-# `embeddedLanguageFormatting: off`, because the code inside a fence is a
-# worked example or a command someone will paste, not source to be tidied.
+# .mdformat.toml carries the formatter's settings and explains them. Two things
+# it does not have to say, because mdformat's defaults already do what this
+# repo wants: prose is never rewrapped (the prose here is wrapped by hand at
+# deliberate points), and the code inside a fence is left alone, being a worked
+# example or a command someone will paste rather than source to be tidied.
 gitignore: true
 
 # Without this, a bare `markdownlint-cli2` finds nothing and reports success.
