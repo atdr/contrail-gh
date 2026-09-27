@@ -138,8 +138,9 @@ jobs:
                   "is a judgment call every time. Read what it actually does "
                   "(its own --help, the CHANGELOG entry for this release) "
                   "before deciding: should instance owners be actively shown "
-                  "how to use it (Passport is the worked example -- "
-                  "gitignored, documented), or is this internal/diagnostic "
+                  "how to use it (Passport is the worked example -- built "
+                  "and committed by the sync, kept out of the template, "
+                  "documented), or is this internal/diagnostic "
                   "tooling that needs no template reaction? Don't assume "
                   "either answer."
               ),

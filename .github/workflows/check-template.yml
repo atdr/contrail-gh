@@ -270,14 +270,14 @@ jobs:
 
           # contrail passport writes the itinerary into one HTML file, and
           # --output can name it anything, so match every HTML file rather
-          # than the default name .gitignore covers. The template ships none;
+          # than just passport.html. The template ships none;
           # narrow this if it ever needs one.
           HTML=$(git ls-files | grep -iE '\.html?$' || true)
           if [ -n "$HTML" ]; then
             echo "An HTML file is committed in the public template:"
             echo "$HTML"
             echo "contrail passport output embeds someone's itinerary. It belongs"
-            echo "only on the owner's machine, never in a repo."
+            echo "only in a private repo created from this one."
             exit 1
           fi
           echo "header-only, no raw log, no exports, no Passport in the tree"
