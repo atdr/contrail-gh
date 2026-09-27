@@ -42,6 +42,7 @@ confidently wrong destroys data, prefer the detector that fails loudly.
 | `flight_emissions.csv`       | header row only                   | real flights, and it grows               |
 | `flight_emissions.raw.jsonl` | must not exist                    | present once a sync has run              |
 | `flighty/`                   | empty of CSVs                     | the owner's exports, committed by hand   |
+| `passport.html`              | must not exist                    | committed by the sync, like the CSV      |
 | Actions secrets              | none                              | `TRIPIT_ICAL_URL`, `TIM_API_KEY`         |
 | Purpose                      | the thing people copy             | someone's actual travel record           |
 
@@ -64,11 +65,15 @@ departed, and the calendar feed only carries recent trips.
 
 - Editing a row by hand is supported and expected: fill in emissions on an
   `unparsed` row, or set `cabin_class_known`, and the next sync picks it up.
-- Both files must stay committed. If they stop appearing in commits, check the
-  `git add` line in `sync.yml`.
+- Both files must stay committed, and so does `passport.html`. If they stop
+  appearing in commits, check `file_pattern` in `sync.yml`. The Passport is
+  derived from the CSV, so unlike the log it can always be rebuilt.
+- `passport.html` is only rewritten when its content changes. A sync that
+  leaves it alone is working as intended, not stuck.
 - **Never make this repo public**, and never copy its contents into a public
-  one. The CSV is an itinerary; the raw log is worse; an export in `flighty/` is
-  the owner's entire flying history in one file.
+  one. The CSV is an itinerary; the raw log is worse; the Passport is the same
+  itinerary as a page anyone can open; an export in `flighty/` is the owner's
+  entire flying history in one file.
 - Exports in `flighty/` are committed on purpose and are read by every sync.
   Don't tidy them away. Re-exporting is safe — Flighty ids are stable, so a
   re-export re-prices nothing.
@@ -98,10 +103,11 @@ departed, and the calendar feed only carries recent trips.
 
 **`atdr/contrail-gh` must never hold flight data**, because it is public. In the
 template, and only there, `flight_emissions.csv` is the header row and nothing
-else, `flight_emissions.raw.jsonl` must not exist, and `flighty/` must hold no
-CSV. `check-template.yml` enforces all three and is gated to `atdr/contrail-gh`
-by repository name, so it does nothing in a repo created from the template —
-where all three files are the point.
+else, `flight_emissions.raw.jsonl` and `passport.html` must not exist, and
+`flighty/` must hold no CSV. `check-template.yml` enforces all four (the
+Passport as any HTML file, since `--output` can name it anything) and is gated
+to `atdr/contrail-gh` by repository name, so it does nothing in a repo created
+from the template — where all four files are the point.
 
 `flighty/` is the sharpest of them. A Flighty export is an entire travel history
 in one file, and unlike the log it is a file someone puts there by hand, so
@@ -183,15 +189,6 @@ Before editing any Markdown here, read
 
 ## True in both
 
-**A Passport is never committed, in any repo.** `contrail passport` writes the
-whole itinerary into one HTML file. `.gitignore` covers the default
-`passport.html`, but `--output` can name it anything, so the rule is the file,
-not the name. `sync.yml` builds one after every sync and attaches it to the run
-as an artifact, writing it to `$RUNNER_TEMP` so it is never inside the checkout
-its commit step reads; keep it there, and never add it to `file_pattern`. In
-`atdr/contrail-gh`, `check-template.yml` rejects any HTML file in the tree or
-in history; in a repo created from it, nothing checks, so don't add one.
-
 **The version pin is deliberate.** `requirements.txt` pins an exact `contrails`
 version and must never track `main` or a floor: a change upstream would
 otherwise reach every instance unannounced. Bumping is still opt-in — Dependabot
@@ -209,7 +206,8 @@ sends people to a release this template doesn't install. Write
 checked.
 
 **`git add` in `sync.yml` must cover every file contrail writes.** Today:
-`flight_emissions.csv`, `flight_emissions.raw.jsonl`, `last_checked.txt`. A new
+`flight_emissions.csv`, `flight_emissions.raw.jsonl`, `last_checked.txt`,
+`passport.html`. A new
 output that isn't added is silently lost on every run.
 
 **`last_checked.txt` is load-bearing.** GitHub disables scheduled workflows after

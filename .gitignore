@@ -4,7 +4,3 @@ config.json
 config.yaml
 __pycache__/
 .DS_Store
-
-# contrail passport's default output. It embeds the whole itinerary, so it is
-# as private as the CSV and is never committed, in the template or an instance.
-passport.html

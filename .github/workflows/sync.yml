@@ -57,6 +57,38 @@ jobs:
           FLIGHTY_CSV_PATH: flighty/
         run: contrail sync --csv-path flight_emissions.csv
 
+      # Passport is the log as an interactive dashboard, committed alongside
+      # it and exactly as private: never make a repo holding either public.
+      #
+      # Built every run, but only replaces the committed copy when something
+      # besides its generatedAt stamp changed. The stamp and each flight's
+      # departed flag are the only parts that depend on the clock, so this
+      # catches a changed log, a flight departing, and a contrail upgrade
+      # changing the page, without a new 800 KB version in history every day.
+      #
+      # contrail refuses to build one from a log with no flights, which is where
+      # a new repo starts, so a header-only log skips it.
+      #
+      # continue-on-error so a Passport failure can never cost this sync's data:
+      # the commit still runs, and the last step turns the run red afterwards.
+      - name: Build the Passport
+        id: passport
+        continue-on-error: true
+        run: |
+          if [ "$(wc -l < flight_emissions.csv)" -le 1 ]; then
+            echo "No flights in the log yet, so no Passport this run."
+            exit 0
+          fi
+          NEW="$RUNNER_TEMP/passport.html"
+          contrail passport --csv-path flight_emissions.csv --output "$NEW"
+          strip() { sed -E 's/"generatedAt":"[^"]*"//' "$1"; }
+          if [ -f passport.html ] && cmp -s <(strip passport.html) <(strip "$NEW"); then
+            echo "Passport unchanged apart from its timestamp; keeping the committed copy."
+          else
+            mv "$NEW" passport.html
+            echo "Passport updated."
+          fi
+
       - name: Keepalive marker
         # GitHub disables scheduled workflows after 60 days with no repository
         # activity. A quiet stretch of travel could easily mean no new-flight
@@ -71,45 +103,21 @@ jobs:
         # its "." default, so a repo with stray local changes never commits
         # them by accident.
         #
-        # flight_emissions.raw.jsonl may not exist yet on a repo's first-ever
-        # sync; untested here since this repo already has one.
+        # flight_emissions.raw.jsonl and passport.html may not exist yet on a
+        # repo's first syncs. That is fine: the action finds changes with
+        # `git status -- <file_pattern>`, which ignores a path that isn't there.
         uses: planetscale/ghcommit-action@v0.2.22
         with:
           commit_message: "Sync flight emissions"
           repo: ${{ github.repository }}
           branch: ${{ github.ref_name }}
-          file_pattern: "flight_emissions.csv last_checked.txt flight_emissions.raw.jsonl"
+          file_pattern: "flight_emissions.csv last_checked.txt flight_emissions.raw.jsonl passport.html"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Passport is the log as an interactive dashboard, with the whole
-      # itinerary embedded. It is never committed: it goes to $RUNNER_TEMP,
-      # outside the checkout, so no file_pattern or .gitignore change can ever
-      # sweep it into a commit. It runs after the commit so a Passport failure
-      # can never cost this sync's data, and still turns the run red.
-      #
-      # contrail refuses to build one from a log with no flights, which is
-      # where a new repo starts and stays until a sync finds one, so a
-      # header-only log skips the Passport rather than failing the run.
-      - name: Build the Passport
-        id: passport
-        run: |
-          if [ "$(wc -l < flight_emissions.csv)" -le 1 ]; then
-            echo "No flights in the log yet, so no Passport this run."
-            exit 0
-          fi
-          contrail passport --csv-path flight_emissions.csv --output "$RUNNER_TEMP/passport.html"
-          echo "built=true" >> "$GITHUB_OUTPUT"
 
-      # Download it from this run's page in the Actions tab. An artifact in a
-      # private repo is visible to anyone with read access to it, the same
-      # people who can read the CSV. Every sync makes a fresh one, so a week's
-      # retention keeps the latest without storing a copy per day for months.
-      - name: Attach the Passport to this run
-        if: steps.passport.outputs.built == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: passport
-          path: ${{ runner.temp }}/passport.html
-          retention-days: 7
-          if-no-files-found: error
+      - name: Fail the run if the Passport did not build
+        if: steps.passport.outcome == 'failure'
+        run: |
+          echo "The sync was committed, but the Passport step failed. See its log above."
+          exit 1
