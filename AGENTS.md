@@ -183,6 +183,13 @@ Before editing any Markdown here, read
 
 ## True in both
 
+**A Passport is never committed, in any repo.** `contrail passport` writes the
+whole itinerary into one HTML file. `.gitignore` covers the default
+`passport.html`, but `--output` can name it anything, so the rule is the file,
+not the name. `sync.yml` must never generate or `git add` one. In
+`atdr/contrail-gh`, `check-template.yml` rejects any HTML file in the tree or
+in history; in a repo created from it, nothing checks, so don't add one.
+
 **The version pin is deliberate.** `requirements.txt` pins an exact `contrails`
 version and must never track `main` or a floor: a change upstream would
 otherwise reach every instance unannounced. Bumping is still opt-in — Dependabot
@@ -260,3 +267,17 @@ other or they start disagreeing about what correct Markdown is.
 [contrail's docs/contrail-gh.md](https://github.com/atdr/contrail/blob/main/docs/contrail-gh.md)
 lists what a schema or output change upstream obliges here: regenerate the
 header, bump the pin, check the README still describes the columns accurately.
+
+**Squash merge a pin-bump pull request**, in `atdr/contrail-gh` and in your own
+repo alike. The Dependabot bump and the changes it obliges (the header,
+`contrail-surface.json`, the pin quoted in the docs, any scaffolding) are one
+change: the surface and template checks fail on the bump alone and on the
+reactions alone, so no ordering of separate commits keeps every commit on
+`main` green. Push the reactions to Dependabot's branch as ordinary commits for
+review, then squash. GitHub credits every other commit author with a
+`Co-authored-by` trailer, so Dependabot stays attributed, and `tag-pin.yml`
+tags the squash commit.
+
+Once anything is pushed to that branch, never comment `@dependabot rebase` or
+`@dependabot recreate` on the pull request: Dependabot rebuilds the branch from
+scratch and drops the pushed commits.

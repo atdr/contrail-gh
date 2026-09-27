@@ -106,6 +106,26 @@ travel could easily mean no new flights to commit for that long.
 
 Full column reference is in [contrail's README](https://github.com/atdr/contrail#csv-columns).
 
+A release that adds a column adds it to your existing log on the next sync. Older rows stay blank
+there until a source states a value; nothing is re-priced to fill it.
+
+## Passport
+
+`contrail passport` turns your log into an interactive emissions dashboard, one self-contained HTML
+file. Run it on your own machine, from a clone of your repo:
+
+```bash
+pip install -r requirements.txt
+contrail passport --open
+```
+
+**Never commit the Passport.** It embeds your whole itinerary in a form anyone can open.
+`.gitignore` covers the default `passport.html`, but `--output` can write it anywhere, and a file
+at any other path in your repo is just as private and is not ignored. `sync.yml` never generates or
+commits one. In `atdr/contrail-gh`, `check-template.yml` fails if any HTML file is ever committed.
+
+See [contrail's README](https://github.com/atdr/contrail#passport) for the options.
+
 ## Changed and cancelled flights
 
 While a flight hasn't departed, contrail keeps it up to date: a retimed or
@@ -158,7 +178,7 @@ delayed. Change the `cron:` line if you'd rather it ran at another time.
 `check-template.yml` all install from it:
 
 ```text
-contrails==0.4.0
+contrails==0.5.1
 ```
 
 It's pinned to an exact version rather than tracking `main` so a change upstream can never

@@ -12,6 +12,7 @@
     "origin",
     "destination",
     "departure_time",
+    "arrival_time",
     "status",
     "cabin_class_known",
     "aircraft_type",
@@ -36,10 +37,15 @@
   "providers": [
     "tim"
   ],
-  "raw_logs": null,
-  "storages": null,
+  "raw_logs": [
+    "jsonl"
+  ],
+  "storages": [
+    "local_csv"
+  ],
   "subcommands": [
-    "sources",
+    "importers",
+    "passport",
     "sync"
   ]
 }
