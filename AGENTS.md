@@ -186,7 +186,9 @@ Before editing any Markdown here, read
 **A Passport is never committed, in any repo.** `contrail passport` writes the
 whole itinerary into one HTML file. `.gitignore` covers the default
 `passport.html`, but `--output` can name it anything, so the rule is the file,
-not the name. `sync.yml` must never generate or `git add` one. In
+not the name. `sync.yml` builds one after every sync and attaches it to the run
+as an artifact, writing it to `$RUNNER_TEMP` so it is never inside the checkout
+its commit step reads; keep it there, and never add it to `file_pattern`. In
 `atdr/contrail-gh`, `check-template.yml` rejects any HTML file in the tree or
 in history; in a repo created from it, nothing checks, so don't add one.
 

@@ -112,7 +112,15 @@ there until a source states a value; nothing is re-priced to fill it.
 ## Passport
 
 `contrail passport` turns your log into an interactive emissions dashboard, one self-contained HTML
-file. Run it on your own machine, from a clone of your repo:
+file. Every sync builds a fresh one for you: open the latest `sync` run in your repo's **Actions**
+tab and download `passport` from its **Artifacts**. Each is kept for seven days, and a run skips it
+while your log has no flights yet.
+
+An artifact in a private repo can be downloaded by anyone with read access to it, the same people
+who can already read your CSV. `check-instance.yml` builds one on every pull request too, without
+uploading it, so a contrail upgrade that breaks the Passport fails there first.
+
+To build one yourself, from a clone of your repo:
 
 ```bash
 pip install -r requirements.txt
@@ -121,8 +129,9 @@ contrail passport --open
 
 **Never commit the Passport.** It embeds your whole itinerary in a form anyone can open.
 `.gitignore` covers the default `passport.html`, but `--output` can write it anywhere, and a file
-at any other path in your repo is just as private and is not ignored. `sync.yml` never generates or
-commits one. In `atdr/contrail-gh`, `check-template.yml` fails if any HTML file is ever committed.
+at any other path in your repo is just as private and is not ignored. `sync.yml` writes its copy
+outside the checkout, so a sync can never commit one. In `atdr/contrail-gh`, `check-template.yml`
+fails if any HTML file is ever committed.
 
 See [contrail's README](https://github.com/atdr/contrail#passport) for the options.
 
