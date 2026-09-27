@@ -98,10 +98,11 @@ departed, and the calendar feed only carries recent trips.
   dry-runs the sync against your feed, your exports and your log, so a change is
   known good before it merges rather than the next morning. It also builds the
   Passport, to a temporary path, so an upgrade that breaks it fails there. It
-  writes nothing and never calls the emissions API — a dry run doesn't price, so it isn't given
-  `TIM_API_KEY` at all, which keeps the check quick and off the API. It also
-  refuses a pull request that deletes a row, the raw log or an export; label the
-  pull request `allow-data-loss` when that is genuinely what you mean.
+  writes nothing and never calls the emissions API — a dry run doesn't price, so
+  it isn't given `TIM_API_KEY` at all, which keeps the check quick and off the
+  API. It also refuses a pull request that deletes a row, the raw log or an
+  export; label the pull request `allow-data-loss` when that is genuinely what
+  you mean.
 
 ## If you are in the template
 
@@ -236,10 +237,10 @@ hours, and the failure that matters here is a stall rather than an error: a
 `pip` fetch hangs instead of failing. The Markdown job used to be the worst of
 these, sitting silent for exactly 301 seconds whenever `npx` refetched Prettier
 and npm's 300s `fetch-timeout` expired, against a clean run of twelve. Moving
-that job to mdformat, installed from `requirements-dev.txt`, ended the
-recurring five minutes; a timeout still bounds the fetch that never recovers,
-which is all a timeout can do. Every job allows ten minutes except `sync.yml`,
-which allows sixty, and that one is deliberately generous — a sync killed mid-run commits
+that job to mdformat, installed from `requirements-dev.txt`, ended the recurring
+five minutes; a timeout still bounds the fetch that never recovers, which is all
+a timeout can do. Every job allows ten minutes except `sync.yml`, which allows
+sixty, and that one is deliberately generous — a sync killed mid-run commits
 nothing, so every emissions figure it had already fetched is lost, and TIM will
 not price a flight once it has departed. In a repo created from
 `atdr/contrail-gh` a hung job also spends metered Actions minutes, which the
