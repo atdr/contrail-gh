@@ -80,7 +80,10 @@ departed, and the calendar feed only carries recent trips.
 - Upgrading contrail means merging the Dependabot pull request that bumps the
   pin in `requirements.txt`. Check
   [contrail's releases](https://github.com/atdr/contrail/releases) for what
-  changed first.
+  changed first. If the bump fails the surface check, the template has usually
+  already reacted to that release: pull the template's files onto the
+  Dependabot branch (see "Staying up to date" in the README), then squash
+  merge, as "When contrail changes" below explains.
 - Pulling template updates is manual and one file at a time; see "Staying up to
   date" in the README. Re-apply your own pin in `requirements.txt` afterwards
   if the template's copy overwrote it.
@@ -93,8 +96,9 @@ departed, and the calendar feed only carries recent trips.
 - `sync.yml` is the one that _does_ run here. That is the whole point.
 - `check-instance.yml` runs in your own repo too, on every pull request: it
   dry-runs the sync against your feed, your exports and your log, so a change is
-  known good before it merges rather than the next morning. It writes nothing
-  and never calls the emissions API — a dry run doesn't price, so it isn't given
+  known good before it merges rather than the next morning. It also builds the
+  Passport, to a temporary path, so an upgrade that breaks it fails there. It
+  writes nothing and never calls the emissions API — a dry run doesn't price, so it isn't given
   `TIM_API_KEY` at all, which keeps the check quick and off the API. It also
   refuses a pull request that deletes a row, the raw log or an export; label the
   pull request `allow-data-loss` when that is genuinely what you mean.
@@ -205,10 +209,11 @@ sends people to a release this template doesn't install. Write
 `contrails==X.Y.Z` where you mean the pin in general; only a real version is
 checked.
 
-**`git add` in `sync.yml` must cover every file contrail writes.** Today:
-`flight_emissions.csv`, `flight_emissions.raw.jsonl`, `last_checked.txt`,
-`passport.html`. A new
-output that isn't added is silently lost on every run.
+**`file_pattern` in `sync.yml` must cover every file contrail writes.** The
+commit step goes through `ghcommit-action`, which commits only what that list
+names. Today: `flight_emissions.csv`, `flight_emissions.raw.jsonl`,
+`last_checked.txt`, `passport.html`. A new output that isn't listed is silently
+lost on every run.
 
 **`last_checked.txt` is load-bearing.** GitHub disables scheduled workflows after
 60 days of no repository activity, and a quiet stretch of travel reaches that
@@ -220,7 +225,7 @@ by default since February 2023; without it the commit-back step 403s.
 **Every workflow is named after its own file**, and the description goes on the
 job. GitHub labels a check `<workflow name> / <job name>` and never shows the
 filename, so a workflow named for what it does leaves a reader guessing which of
-the four files to open — `check-template / template contract` names both. A
+the six files to open — `check-template / template contract` names both. A
 workflow reached through `workflow_call` adds a third segment, the calling job's:
 `check-template / markdown / lint`. In `atdr/contrail-gh`, `check-template.yml`
 fails the build when a workflow's name and its filename disagree; the job names
@@ -233,8 +238,8 @@ these, sitting silent for exactly 301 seconds whenever `npx` refetched Prettier
 and npm's 300s `fetch-timeout` expired, against a clean run of twelve. Moving
 that job to mdformat, installed from `requirements-dev.txt`, ended the
 recurring five minutes; a timeout still bounds the fetch that never recovers,
-which is all a timeout can do. The three checks allow ten minutes. `sync.yml` allows
-sixty, and that one is deliberately generous — a sync killed mid-run commits
+which is all a timeout can do. Every job allows ten minutes except `sync.yml`,
+which allows sixty, and that one is deliberately generous — a sync killed mid-run commits
 nothing, so every emissions figure it had already fetched is lost, and TIM will
 not price a flight once it has departed. In a repo created from
 `atdr/contrail-gh` a hung job also spends metered Actions minutes, which the
@@ -265,8 +270,9 @@ other or they start disagreeing about what correct Markdown is.
 ## When contrail changes
 
 [contrail's docs/contrail-gh.md](https://github.com/atdr/contrail/blob/main/docs/contrail-gh.md)
-lists what a schema or output change upstream obliges here: regenerate the
-header, bump the pin, check the README still describes the columns accurately.
+lists what a schema or output change upstream obliges in `atdr/contrail-gh`:
+bump the pin, regenerate the header and `contrail-surface.json`, and check the
+README still describes what a sync produces.
 
 **Squash merge a pin-bump pull request**, in `atdr/contrail-gh` and in your own
 repo alike. The Dependabot bump and the changes it obliges (the header,
