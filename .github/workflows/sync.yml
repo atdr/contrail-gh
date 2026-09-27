@@ -81,3 +81,35 @@ jobs:
           file_pattern: "flight_emissions.csv last_checked.txt flight_emissions.raw.jsonl"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Passport is the log as an interactive dashboard, with the whole
+      # itinerary embedded. It is never committed: it goes to $RUNNER_TEMP,
+      # outside the checkout, so no file_pattern or .gitignore change can ever
+      # sweep it into a commit. It runs after the commit so a Passport failure
+      # can never cost this sync's data, and still turns the run red.
+      #
+      # contrail refuses to build one from a log with no flights, which is
+      # where a new repo starts and stays until a sync finds one, so a
+      # header-only log skips the Passport rather than failing the run.
+      - name: Build the Passport
+        id: passport
+        run: |
+          if [ "$(wc -l < flight_emissions.csv)" -le 1 ]; then
+            echo "No flights in the log yet, so no Passport this run."
+            exit 0
+          fi
+          contrail passport --csv-path flight_emissions.csv --output "$RUNNER_TEMP/passport.html"
+          echo "built=true" >> "$GITHUB_OUTPUT"
+
+      # Download it from this run's page in the Actions tab. An artifact in a
+      # private repo is visible to anyone with read access to it, the same
+      # people who can read the CSV. Every sync makes a fresh one, so a week's
+      # retention keeps the latest without storing a copy per day for months.
+      - name: Attach the Passport to this run
+        if: steps.passport.outputs.built == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: passport
+          path: ${{ runner.temp }}/passport.html
+          retention-days: 7
+          if-no-files-found: error
