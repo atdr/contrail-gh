@@ -112,13 +112,18 @@ there until a source states a value; nothing is re-priced to fill it.
 ## Passport
 
 `contrail passport` turns your log into an interactive emissions dashboard, one self-contained HTML
-file. Every sync builds a fresh one for you: open the latest `sync` run in your repo's **Actions**
-tab and download `passport` from its **Artifacts**. Each is kept for seven days, and a run skips it
-while your log has no flights yet.
+file. Every sync keeps `passport.html` in your repo up to date, committed alongside the CSV: clone
+or download your repo and open it in a browser. GitHub shows an HTML file's source rather than the
+page, so it has to be opened locally.
 
-An artifact in a private repo can be downloaded by anyone with read access to it, the same people
-who can already read your CSV. `check-instance.yml` builds one on every pull request too, without
-uploading it, so a contrail upgrade that breaks the Passport fails there first.
+It is rebuilt when something on it would change: a new or corrected flight, a flight departing, a
+contrail upgrade. Otherwise it is left alone, so it doesn't add a copy to your history every day. A
+sync skips it while your log has no flights yet. `check-instance.yml` builds one on every pull
+request too, without writing it, so a contrail upgrade that breaks the Passport fails there first.
+
+It holds the same itinerary as the CSV, which is one more reason your repo must stay private.
+`atdr/contrail-gh` is public and never carries one: there, `check-template.yml` fails if any HTML
+file is ever committed.
 
 To build one yourself, from a clone of your repo:
 
@@ -126,12 +131,6 @@ To build one yourself, from a clone of your repo:
 pip install -r requirements.txt
 contrail passport --open
 ```
-
-**Never commit the Passport.** It embeds your whole itinerary in a form anyone can open.
-`.gitignore` covers the default `passport.html`, but `--output` can write it anywhere, and a file
-at any other path in your repo is just as private and is not ignored. `sync.yml` writes its copy
-outside the checkout, so a sync can never commit one. In `atdr/contrail-gh`, `check-template.yml`
-fails if any HTML file is ever committed.
 
 See [contrail's README](https://github.com/atdr/contrail#passport) for the options.
 
@@ -267,13 +266,14 @@ Already added it as `upstream` or `github`? See
 git fetch template
 git diff template/main -- .github/workflows/ requirements.txt \
   contrail-surface.json .markdownlint-cli2.yaml .mdformat.toml \
-  requirements-dev.txt
+  requirements-dev.txt .gitignore
 ```
 
 The files fall into two groups. Everything under `.github/workflows/`,
 `requirements.txt`, `contrail-surface.json`, `README.md`, `AGENTS.md`,
 `.claude/` and the Markdown config files (`.markdownlint-cli2.yaml`,
-`.mdformat.toml`, `requirements-dev.txt`) are template-owned and safe to pull.
+`.mdformat.toml`, `requirements-dev.txt`) and `.gitignore` are template-owned and safe to pull.
+`.gitignore` decides which of `sync.yml`'s outputs git will see, so it travels with the workflows.
 `contrail-surface.json` carries no data of yours either — it's a snapshot of
 the pinned release's shape, not your instance's — so it's as safe to pull
 wholesale as the Markdown config. `flight_emissions.csv` is yours — your real
@@ -290,7 +290,7 @@ Pull just those files rather than merging the whole branch:
 ```bash
 git checkout template/main -- .github/workflows/ requirements.txt \
   contrail-surface.json .markdownlint-cli2.yaml .mdformat.toml \
-  requirements-dev.txt
+  requirements-dev.txt .gitignore
 # review the diff and re-apply your own version pin (the "contrails==X.Y.Z"
 # in requirements.txt) if the template's copy overwrote it — and if you do,
 # regenerate contrail-surface.json to match that same pin too (recipe in
@@ -298,7 +298,7 @@ git checkout template/main -- .github/workflows/ requirements.txt \
 # on every future pull request for a version you're not even running, then:
 git add .github/workflows/ requirements.txt \
   contrail-surface.json .markdownlint-cli2.yaml .mdformat.toml \
-  requirements-dev.txt
+  requirements-dev.txt .gitignore
 git commit -m "Update workflows from contrail-gh"
 ```
 
