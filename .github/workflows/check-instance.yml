@@ -63,7 +63,19 @@ jobs:
           # scheduled sync is what proves that.
         run: contrail sync --csv-path flight_emissions.csv --dry-run
 
-      - name: The dry run must not have written anything
+      # sync.yml builds the Passport after every sync, so a pin bump that
+      # breaks it should fail here rather than in the next scheduled run.
+      # Written to $RUNNER_TEMP and never uploaded: this only proves it builds.
+      # Skipped on a header-only log, which contrail refuses and sync.yml skips.
+      - name: Build the Passport
+        run: |
+          if [ "$(wc -l < flight_emissions.csv)" -le 1 ]; then
+            echo "No flights in the log yet, so there is no Passport to check."
+            exit 0
+          fi
+          contrail passport --csv-path flight_emissions.csv --output "$RUNNER_TEMP/passport.html"
+
+      - name: Neither step may have written anything
         # --dry-run promises this, and it is the property that makes running the
         # check against a repo's real flight log acceptable at all.
         run: git diff --exit-code
