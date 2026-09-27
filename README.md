@@ -3,9 +3,10 @@
 A GitHub Actions setup that runs [contrail](https://github.com/atdr/contrail) on a schedule and
 keeps a log of your flight emissions in your own private repo.
 
-Every day it reads your TripIt calendar feed, prices any new flights using Google's
-[Travel Impact Model](https://travelimpactmodel.org/about-tim), appends them to
-`flight_emissions.csv`, and commits the result back. No server, no machine to maintain.
+Every day it reads your TripIt calendar feed (and any Flighty exports you add), prices any new
+flights using Google's [Travel Impact Model](https://travelimpactmodel.org/about-tim), and commits
+the results back: the log in `flight_emissions.csv`, every raw emissions answer behind it, and a
+Passport, an interactive dashboard of your flying. No server, no machine to maintain.
 
 Your flight history and your API keys stay in **your** repo. This template contains no data and
 no secrets, and contrail itself is installed from PyPI at a pinned version.
@@ -103,6 +104,8 @@ awk -F, 'NR==1{for(i=1;i<=NF;i++)if($i=="emissions_kg_actual")c=i;next} $c!=""{t
 Also `last_checked.txt`, a timestamp touched on every run. It exists to guarantee repository
 activity: GitHub disables scheduled workflows after 60 days of inactivity, and a quiet stretch of
 travel could easily mean no new flights to commit for that long.
+
+And `passport.html`, the same log as an interactive dashboard; see [Passport](#passport) below.
 
 Full column reference is in [contrail's README](https://github.com/atdr/contrail#csv-columns).
 
@@ -269,16 +272,19 @@ git diff template/main -- .github/workflows/ requirements.txt \
   requirements-dev.txt .gitignore
 ```
 
-The files fall into two groups. Everything under `.github/workflows/`,
-`requirements.txt`, `contrail-surface.json`, `README.md`, `AGENTS.md`,
-`.claude/` and the Markdown config files (`.markdownlint-cli2.yaml`,
-`.mdformat.toml`, `requirements-dev.txt`) and `.gitignore` are template-owned and safe to pull.
-`.gitignore` decides which of `sync.yml`'s outputs git will see, so it travels with the workflows.
-`contrail-surface.json` carries no data of yours either — it's a snapshot of
-the pinned release's shape, not your instance's — so it's as safe to pull
-wholesale as the Markdown config. `flight_emissions.csv` is yours — your real
-flight data — and should never be overwritten from the template;
-`last_checked.txt` is regenerated every run and can be ignored either way.
+The files fall into three groups:
+
+- **Template-owned, pulled by the command below:** everything under `.github/workflows/`,
+  `requirements.txt`, `contrail-surface.json`, `.gitignore` and the Markdown config files
+  (`.markdownlint-cli2.yaml`, `.mdformat.toml`, `requirements-dev.txt`). `.gitignore` decides
+  which of `sync.yml`'s outputs git will see, so it travels with the workflows.
+  `contrail-surface.json` is a snapshot of the pinned release's shape, not of your data.
+- **Template-owned, pulled by hand:** `README.md`, `AGENTS.md` and `.claude/`. They carry nothing
+  of yours, but you may have edited your README, so they are left out of the command. Diff them
+  with `git diff template/main -- README.md AGENTS.md .claude/` and take what you want.
+- **Yours, never pulled:** `flight_emissions.csv`, `flight_emissions.raw.jsonl`, `passport.html`
+  and any exports in `flighty/`. The template has a header-only CSV and none of the rest.
+  `last_checked.txt` is regenerated every run and can be ignored either way.
 
 `flighty/` is the one directory holding both: its `README.md` is
 template-owned, while any `FlightyExport-*.csv` beside it is yours. The
@@ -364,6 +370,15 @@ onwards. If you see a pattern of these, it's worth
 or a `flighty/` export. Usually that's a merge or a rebase gone sideways rather than an
 intention, so check the diff first. If you did mean it — replacing a superseded export,
 say — add the label `allow-data-loss` to the pull request and re-run the check.
+
+**`passport.html` didn't change after a sync.** That's expected. A sync rebuilds it but only
+commits the new copy when something on it changed: a flight added or corrected, a flight departing,
+a contrail upgrade. Otherwise only the build timestamp would differ, so the file is left alone.
+
+**The sync failed on the Passport step.** The sync's own data was still committed: the Passport is
+built before the commit but can't block it, and the run is marked failed afterwards so you notice.
+Read that step's log. A contrail upgrade that broke it would usually have failed `check-instance.yml`
+on its pull request first.
 
 **The workflow stopped running.** GitHub disables scheduled workflows after 60 days of no
 repository activity. `last_checked.txt` exists to prevent this, but if it happens, re-enable the
