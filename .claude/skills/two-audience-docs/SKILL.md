@@ -51,8 +51,8 @@ That sentence is true and inert in both repos. Prefer `atdr/contrail-gh` and
    enforces this" without saying where.
 4. **Say when a section does not apply**, in the section itself. A reader who
    skipped the heading needs the body to tell them.
-5. **Don't hand-align a table.** `markdown.yml` runs Prettier and
-   markdownlint-cli2 on every pull request in both repos; Prettier decides the
+5. **Don't hand-align a table.** `markdown.yml` runs mdformat and
+   markdownlint-cli2 on every pull request in both repos; mdformat decides the
    padding, and prose wraps at 80 (100 in `README.md`). That is mechanical and
    says nothing about wording — everything above still has to be got right by
    reading.
