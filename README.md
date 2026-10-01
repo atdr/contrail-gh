@@ -185,9 +185,12 @@ that last, in this order:
    | Zone: the one holding the hostname | Workers Routes Write      |
 
    That is the whole set the deploy needs. Cloudflare's API has no OIDC login for GitHub Actions,
-   so a long-lived token is unavoidable; keeping it to one Worker means a leaked token can replace
-   that page and nothing else. Skipping step 2 by granting Workers Scripts Edit across the account
-   works too, but then a leaked token can replace any Worker you have.
+   so a long-lived token is unavoidable. Know what a leaked one could do: it can rewrite that one
+   Worker with any code, and the routes permission covers the whole zone, so it can also point
+   routes for other hostnames in that zone at that Worker, or break the routes already there. If
+   the zone serves anything you care about, put the Passport on a domain of its own. Skipping step
+   2 by granting Workers Scripts Edit across the account works too, but then a leaked token can
+   also rewrite every other Worker you have.
 
 4. **Store it in an environment limited to `main`**, not as a repository secret, so a workflow on
    any other branch can't read it. Replace `octocat/my-contrail` with your own repo:
