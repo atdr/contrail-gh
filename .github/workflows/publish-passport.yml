@@ -1,0 +1,110 @@
+name: publish-passport
+
+# Optional, and off until you switch it on. Publishes your committed
+# passport.html to a hostname of your own, served by a Cloudflare Worker behind
+# Cloudflare Access, so the Passport opens as a page rather than as source on
+# github.com. Setup is in the README, under "Publishing the Passport".
+#
+# It is switched on by one repository variable, PASSPORT_HOSTNAME. Without it the
+# job is skipped on every trigger, so a repo that never opts in never sees a
+# failure. A variable rather than "the secrets exist" because a job-level `if:`
+# can read `vars` but not `secrets`.
+#
+# A separate workflow rather than a step in sync.yml, so the Cloudflare token
+# only ever exists in a job that cannot write to your repo.
+on:
+  # After every sync, whatever its outcome. It deploys what is on main, which is
+  # idempotent, so a day with no Passport change just redeploys the same page,
+  # and a failed deploy heals itself on the next sync.
+  workflow_run:
+    workflows: [sync]
+    types: [completed]
+  # A Passport change merged by hand. The sync's own commits don't trigger this:
+  # pushes made with GITHUB_TOKEN never start a workflow, which is why
+  # workflow_run is above.
+  push:
+    branches: [main]
+    paths:
+      - passport.html
+      - .github/workflows/publish-passport.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# Two triggers can land together (a merge during a sync). Queue, don't cancel:
+# the later run deploys the later main either way.
+concurrency:
+  group: publish-passport
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: deploy passport to cloudflare
+    # A hung npx fetch, not the deploy itself, is what this bounds.
+    timeout-minutes: 10
+    # The same repository guard as sync.yml, plus the opt-in. atdr/contrail-gh
+    # has no Passport and no token, and must never set the variable.
+    if: github.repository != 'atdr/contrail-gh' && vars.PASSPORT_HOSTNAME != ''
+    runs-on: ubuntu-latest
+    # The token is an environment secret, not a repository one. Limit the
+    # environment to main and a workflow on any other branch cannot read it.
+    # Cloudflare has no OIDC federation for its API, so a narrowly scoped,
+    # expiring token is the next best thing.
+    environment:
+      name: cloudflare
+      url: https://${{ vars.PASSPORT_HOSTNAME }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # workflow_run already checks out main's latest commit, which
+          # includes the sync's own; naming it keeps that true for every
+          # trigger.
+          ref: main
+
+      # The current LTS. Wrangler 4 refuses to run below Node 22, and the runner
+      # image's default Node is not ours to rely on.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      # The Worker's config is written here rather than committed, so the
+      # settings that keep the page private live in this workflow, where a
+      # template update can fix them, instead of in a file each repo would own.
+      #
+      # Only _publish/site is uploaded, and it holds nothing but the Passport.
+      # Never point assets at the checkout root: that would serve the CSV, the
+      # raw log and every Flighty export alongside it.
+      #
+      # workers_dev and preview_urls are off so the custom domain is the only
+      # address, and Cloudflare Access guards it. Left on, each would be a
+      # second, unguarded URL for the same page.
+      - name: Stage the page and its config
+        env:
+          PASSPORT_HOSTNAME: ${{ vars.PASSPORT_HOSTNAME }}
+          PASSPORT_WORKER: ${{ vars.PASSPORT_WORKER || 'passport' }}
+        run: |
+          if [ ! -f passport.html ]; then
+            echo "No passport.html on main yet, so nothing to publish."
+            exit 0
+          fi
+          mkdir -p _publish/site
+          cp passport.html _publish/site/index.html
+          jq -n --arg name "$PASSPORT_WORKER" --arg host "$PASSPORT_HOSTNAME" '{
+            name: $name,
+            compatibility_date: "2026-10-01",
+            assets: { directory: "./site" },
+            workers_dev: false,
+            preview_urls: false,
+            routes: [{ pattern: $host, custom_domain: true }]
+          }' > _publish/wrangler.json
+          cat _publish/wrangler.json
+
+      - name: Deploy
+        if: hashFiles('_publish/site/index.html') != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        # Pinned exactly, like every other tool version here.
+        run: npx --yes wrangler@4.145.0 deploy --config _publish/wrangler.json
