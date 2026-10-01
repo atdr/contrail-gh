@@ -153,11 +153,12 @@ The workflow does nothing until you set the `PASSPORT_HOSTNAME` variable in your
 that last, in this order:
 
 1. **Put Access in front of the hostname first.** In Zero Trust, add a self-hosted application for
-   `passport.example.com` with a policy that allows only you. The first deploy creates the DNS
-   record, and without Access the page is public from that moment.
+   `passport.example.com` with a policy that allows only you. Step 2 creates the DNS record, and
+   without Access the page is public from that moment.
 
-2. **Create the Worker once, by hand.** A token limited to one Worker can't create it, so deploy a
-   placeholder from your own machine, outside any clone of your repo, with your own hostname in
+2. **Create the Worker and attach the hostname, once, by hand.** The workflow's token can do
+   neither: it is limited to one existing Worker, and it never touches routes or domains. So deploy
+   a placeholder from your own machine, outside any clone of your repo, with your own hostname in
    place of `passport.example.com`. Wrangler needs Node 22 or later:
 
    ```bash
@@ -177,20 +178,14 @@ that last, in this order:
    the placeholder. The directory has served its purpose after that.
 
 3. **Create an account API token** (Manage Account → Account API tokens → Create Token → Custom)
-   with exactly two permissions, and an expiry:
+   with one permission, **Individual Workers Editor**, on the Worker from step 2 only, and an
+   expiry.
 
-   | Resource                           | Permission                |
-   | ---------------------------------- | ------------------------- |
-   | Worker: the one from step 2        | Individual Workers Editor |
-   | Zone: the one holding the hostname | Workers Routes Write      |
-
-   That is the whole set the deploy needs. Cloudflare's API has no OIDC login for GitHub Actions,
-   so a long-lived token is unavoidable. Know what a leaked one could do: it can rewrite that one
-   Worker with any code, and the routes permission covers the whole zone, so it can also point
-   routes for other hostnames in that zone at that Worker, or break the routes already there. If
-   the zone serves anything you care about, put the Passport on a domain of its own. Skipping step
-   2 by granting Workers Scripts Edit across the account works too, but then a leaked token can
-   also rewrite every other Worker you have.
+   That is all the deploy needs: it uploads a new version and deploys it, which never changes the
+   Worker's routes or domains, so no zone permission is involved. Cloudflare's API has no OIDC
+   login for GitHub Actions, so a long-lived token is unavoidable, but a leaked one can only rewrite
+   that one Worker, still behind your Access policy. It can't touch anything else in the zone or
+   the account.
 
 4. **Store it in an environment limited to `main`**, not as a repository secret, so a workflow on
    any other branch can't read it. Replace `octocat/my-contrail` with your own repo:
