@@ -117,8 +117,11 @@ jobs:
       # nothing here ever exercises it. Its guard has two halves and both are
       # load-bearing: drop the repository half and atdr/contrail-gh tries to
       # deploy; drop the variable half and every repo that never opted in fails
-      # after every sync for want of a token. The Worker settings are checked
-      # for the same reason, since each one is what keeps the page private.
+      # after every sync for want of a token. What keeps the page private is
+      # checked for the same reason: the staged assets directory, and the API
+      # call that switches workers.dev and preview URLs off before each upload.
+      # Config keys for those two would prove nothing, because `versions upload`
+      # ignores them.
       - name: publish-passport.yml must stay opt-in, and publish only the page
         run: |
           F=.github/workflows/publish-passport.yml
@@ -140,13 +143,27 @@ jobs:
 
           # The assets directory must be the staged one: pointing it at the
           # checkout would serve the CSV, the raw log and every export.
-          for want in 'workers_dev: false' 'preview_urls: false' \
-                      'assets: { directory: "./site" }'; do
-            if ! grep -qF "$want" "$F"; then
-              echo "$F no longer writes: ${want}"
-              STATUS=1
-            fi
-          done
+          if ! grep -qF 'assets: { directory: "./site" }' "$F"; then
+            echo "$F no longer stages only the page as the Worker's assets."
+            STATUS=1
+          fi
+
+          # workers.dev and preview URLs are switched off through the API, the
+          # response is checked, and both happen before the upload: a version
+          # uploaded first could go live on an unguarded address.
+          OFF=$(grep -nF '{"enabled":false,"previews_enabled":false}' "$F" | head -1 | cut -d: -f1)
+          CONFIRM=$(grep -nF '.result.enabled == false and .result.previews_enabled == false' "$F" \
+                    | head -1 | cut -d: -f1)
+          UPLOAD=$(grep -nF 'versions upload' "$F" | grep -v '^[0-9]*:[[:space:]]*#' \
+                   | head -1 | cut -d: -f1)
+          if [ -z "$OFF" ] || [ -z "$CONFIRM" ]; then
+            echo "$F no longer switches workers.dev and preview URLs off, and checks"
+            echo "Cloudflare's answer, before deploying."
+            STATUS=1
+          elif [ -z "$UPLOAD" ] || [ "$OFF" -gt "$UPLOAD" ]; then
+            echo "$F must switch workers.dev and preview URLs off before 'versions upload'."
+            STATUS=1
+          fi
 
           if [ "$STATUS" -ne 0 ]; then
             exit 1
