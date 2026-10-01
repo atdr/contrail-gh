@@ -160,8 +160,9 @@ jobs:
             echo "$F no longer switches workers.dev and preview URLs off, and checks"
             echo "Cloudflare's answer, before deploying."
             STATUS=1
-          elif [ -z "$UPLOAD" ] || [ "$OFF" -gt "$UPLOAD" ]; then
-            echo "$F must switch workers.dev and preview URLs off before 'versions upload'."
+          elif [ -z "$UPLOAD" ] || [ "$OFF" -gt "$CONFIRM" ] || [ "$CONFIRM" -gt "$UPLOAD" ]; then
+            echo "$F must switch workers.dev and preview URLs off, then check"
+            echo "Cloudflare's answer, both before 'versions upload'."
             STATUS=1
           fi
 
