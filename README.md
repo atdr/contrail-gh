@@ -375,9 +375,9 @@ say — add the label `allow-data-loss` to the pull request and re-run the check
 commits the new copy when something on it changed: a flight added or corrected, a flight departing,
 a contrail upgrade. Otherwise only the build timestamp would differ, so the file is left alone.
 
-**The sync failed on the Passport step.** The sync's own data was still committed: the Passport is
-built before the commit but can't block it, and the run is marked failed afterwards so you notice.
-Read that step's log. A contrail upgrade that broke it would usually have failed `check-instance.yml`
+**The sync failed on the Passport.** The sync's own data was still committed: the Passport is built
+before the commit but can't block it, and the run is marked failed afterwards so you notice. Read
+the Sync step's log. A contrail upgrade that broke it would usually have failed `check-instance.yml`
 on its pull request first.
 
 **The workflow stopped running.** GitHub disables scheduled workflows after 60 days of no
