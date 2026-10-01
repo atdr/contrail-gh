@@ -53,8 +53,12 @@ jobs:
     # environment to main and a workflow on any other branch cannot read it.
     # Cloudflare has no OIDC federation for its API, so a narrowly scoped,
     # expiring token is the next best thing.
+    #
+    # PASSPORT_NO_ENVIRONMENT=true drops the environment, for an account on
+    # GitHub Free, which has none in private repos. The token is then a
+    # repository secret, readable by a workflow on any branch.
     environment:
-      name: cloudflare
+      name: ${{ vars.PASSPORT_NO_ENVIRONMENT != 'true' && 'cloudflare' || '' }}
       url: https://${{ vars.PASSPORT_HOSTNAME }}
     steps:
       - uses: actions/checkout@v7
