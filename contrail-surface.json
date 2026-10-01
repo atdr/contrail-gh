@@ -45,6 +45,7 @@
   ],
   "subcommands": [
     "importers",
+    "init",
     "passport",
     "sync"
   ]
