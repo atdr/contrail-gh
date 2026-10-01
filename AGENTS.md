@@ -44,6 +44,7 @@ confidently wrong destroys data, prefer the detector that fails loudly.
 | `flighty/`                   | empty of CSVs                     | the owner's exports, committed by hand   |
 | `passport.html`              | must not exist                    | committed by the sync, like the CSV      |
 | Actions secrets              | none                              | `TRIPIT_ICAL_URL`, `TIM_API_KEY`         |
+| Passport publishing          | never: no `PASSPORT_HOSTNAME`     | optional, off until the owner sets it    |
 | Purpose                      | the thing people copy             | someone's actual travel record           |
 
 **If there is no `origin` to ask** — a ZIP download, a checkout whose remote is
@@ -137,22 +138,31 @@ released contrail writes.
 **The workflows are guarded by repository name, and every guard is
 load-bearing:**
 
-| Workflow             | Guard                                         | Runs in               |
-| -------------------- | --------------------------------------------- | --------------------- |
-| `check-template.yml` | `if: github.repository == 'atdr/contrail-gh'` | the template only     |
-| `tag-pin.yml`        | `if: github.repository == 'atdr/contrail-gh'` | the template only     |
-| `sync.yml`           | `if: github.repository != 'atdr/contrail-gh'` | instances only        |
-| `check-instance.yml` | `if: github.repository != 'atdr/contrail-gh'` | instances only        |
-| `markdown.yml`       | none — it is `workflow_call` only             | wherever it is called |
-| `surface-check.yml`  | none — it is `workflow_call` only             | wherever it is called |
+| Workflow               | Guard                                                   | Runs in               |
+| ---------------------- | ------------------------------------------------------- | --------------------- |
+| `check-template.yml`   | `if: github.repository == 'atdr/contrail-gh'`           | the template only     |
+| `tag-pin.yml`          | `if: github.repository == 'atdr/contrail-gh'`           | the template only     |
+| `sync.yml`             | `if: github.repository != 'atdr/contrail-gh'`           | instances only        |
+| `check-instance.yml`   | `if: github.repository != 'atdr/contrail-gh'`           | instances only        |
+| `publish-passport.yml` | the instance guard, plus `vars.PASSPORT_HOSTNAME != ''` | instances that opt in |
+| `markdown.yml`         | none — it is `workflow_call` only                       | wherever it is called |
+| `surface-check.yml`    | none — it is `workflow_call` only                       | wherever it is called |
 
 Removing one produces a workflow that fails forever in the wrong repo: the
 template checks assume a header-only CSV and would fail against real data, the
 sync and the pull request check have no secrets and nothing to log in
 `atdr/contrail-gh`, and `tag-pin.yml` tags contrail-gh's own history, which an
-instance has no business doing to itself. The four guarded ones key off the
+instance has no business doing to itself. The guarded ones key off the
 repository name, so an instance is simply "not the template" — no per-user
 configuration needed.
+
+`publish-passport.yml` is the one exception to that last point, on purpose. It
+deploys the Passport to Cloudflare, which most instances never set up, so it
+also waits for an owner to set the `PASSPORT_HOSTNAME` repository variable. Keep
+both halves of its guard: without the variable check, every instance that never
+opted in fails after every sync for want of a token. `atdr/contrail-gh` must
+never set that variable. The setup is in the README, under "Publishing the
+Passport".
 
 `markdown.yml` and `surface-check.yml` are the exception, and deliberately so:
 neither carries a guard because neither ever triggers on its own.

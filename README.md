@@ -117,7 +117,8 @@ there until a source states a value; nothing is re-priced to fill it.
 `contrail passport` turns your log into an interactive emissions dashboard, one self-contained HTML
 file. Every sync keeps `passport.html` in your repo up to date, committed alongside the CSV: clone
 or download your repo and open it in a browser. GitHub shows an HTML file's source rather than the
-page, so it has to be opened locally.
+page, so it has to be opened locally, unless you publish it to a private address of your own; see
+[Publishing the Passport](#publishing-the-passport).
 
 It is rebuilt when something on it would change: a new or corrected flight, a flight departing, a
 contrail upgrade. Otherwise it is left alone, so it doesn't add a copy to your history every day. A
@@ -136,6 +137,83 @@ contrail passport --open
 ```
 
 See [contrail's README](https://github.com/atdr/contrail#passport) for the options.
+
+### Publishing the Passport
+
+Optional, and off unless you switch it on. `publish-passport.yml` can deploy your `passport.html`
+after every sync to a hostname you own, say `passport.example.com`, served by a Cloudflare Worker
+and visible only to you through Cloudflare Access. It needs a domain on Cloudflare and a Zero Trust
+team; both are free at this scale.
+
+Weigh this first: it puts a second copy of your itinerary on Cloudflare, and that copy is private
+only for as long as your Access policy is right. Nothing in GitHub would tell you if it stopped
+being. Opening the file locally has no such risk.
+
+The workflow does nothing until you set the `PASSPORT_HOSTNAME` variable in your own repo, so do
+that last, in this order:
+
+1. **Put Access in front of the hostname first.** In Zero Trust, add a self-hosted application for
+   `passport.example.com` with a policy that allows only you. The first deploy creates the DNS
+   record, and without Access the page is public from that moment.
+
+2. **Create the Worker once, by hand.** A token limited to one Worker can't create it, so deploy a
+   placeholder from your own machine, outside any clone of your repo, with your own hostname in
+   place of `passport.example.com`. Wrangler needs Node 22 or later:
+
+   ```bash
+   mkdir -p ~/passport-bootstrap/site && cd ~/passport-bootstrap
+   echo '<p>placeholder</p>' > site/index.html
+   cat > wrangler.json <<'EOF'
+   { "name": "passport", "compatibility_date": "2026-10-01",
+     "assets": { "directory": "./site" }, "workers_dev": false, "preview_urls": false,
+     "routes": [{ "pattern": "passport.example.com", "custom_domain": true }] }
+   EOF
+   npx wrangler@4.145.0 login
+   npx wrangler@4.145.0 deploy
+   npx wrangler@4.145.0 logout
+   ```
+
+   Open `https://passport.example.com` in a private window: it should show the Access login, not
+   the placeholder. The directory has served its purpose after that.
+
+3. **Create an account API token** (Manage Account → Account API tokens → Create Token → Custom)
+   with exactly two permissions, and an expiry:
+
+   | Resource                           | Permission                |
+   | ---------------------------------- | ------------------------- |
+   | Worker: the one from step 2        | Individual Workers Editor |
+   | Zone: the one holding the hostname | Workers Routes Write      |
+
+   That is the whole set the deploy needs. Cloudflare's API has no OIDC login for GitHub Actions,
+   so a long-lived token is unavoidable; keeping it to one Worker means a leaked token can replace
+   that page and nothing else. Skipping step 2 by granting Workers Scripts Edit across the account
+   works too, but then a leaked token can replace any Worker you have.
+
+4. **Store it in an environment limited to `main`**, not as a repository secret, so a workflow on
+   any other branch can't read it. Replace `octocat/my-contrail` with your own repo:
+
+   ```bash
+   gh api -X PUT repos/octocat/my-contrail/environments/cloudflare --input - \
+     <<< '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
+   gh api -X POST repos/octocat/my-contrail/environments/cloudflare/deployment-branch-policies \
+     -f name=main -f type=branch
+   gh secret set CLOUDFLARE_API_TOKEN --env cloudflare -R octocat/my-contrail
+   gh secret set CLOUDFLARE_ACCOUNT_ID --env cloudflare -R octocat/my-contrail
+   ```
+
+5. **Switch it on** with the variables, then run the workflow once by hand:
+
+   ```bash
+   gh variable set PASSPORT_HOSTNAME -R octocat/my-contrail --body passport.example.com
+   gh variable set PASSPORT_WORKER -R octocat/my-contrail --body passport  # only if not "passport"
+   gh workflow run publish-passport.yml -R octocat/my-contrail
+   ```
+
+From then on it redeploys after every sync and whenever you merge a change to `passport.html`.
+Before the token expires, roll it and set the secret again. To switch publishing off, delete
+`PASSPORT_HOSTNAME`; the page stays up until you delete the Worker too.
+
+`atdr/contrail-gh` itself never sets the variable: it is public and has no Passport to publish.
 
 ## Changed and cancelled flights
 
