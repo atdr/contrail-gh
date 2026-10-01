@@ -6,4 +6,4 @@
 # Pinned to an exact release on purpose: never a floor, never main. Bumping is
 # still deliberate — reviewing and merging the Dependabot PR that proposes it,
 # rather than hand-editing a tag. See README.md's "Upgrading contrail".
-contrails==0.5.1
+contrails==0.7.0
