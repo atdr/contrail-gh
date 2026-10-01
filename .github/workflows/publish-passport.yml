@@ -78,13 +78,10 @@ jobs:
       # Never point assets at the checkout root: that would serve the CSV, the
       # raw log and every Flighty export alongside it.
       #
-      # workers_dev and preview_urls are off so the custom domain is the only
-      # address, and Cloudflare Access guards it. Left on, each would be a
-      # second, unguarded URL for the same page.
-      #
       # There are no routes here on purpose. The custom domain is attached once,
       # by hand, when the Worker is created (see the README), and the deploy
-      # below never touches it.
+      # below never touches it. workers_dev and preview_urls are absent too:
+      # `versions upload` ignores both, so the next step sets them instead.
       - name: Stage the page and its config
         env:
           PASSPORT_WORKER: ${{ vars.PASSPORT_WORKER || 'passport' }}
@@ -98,11 +95,37 @@ jobs:
           jq -n --arg name "$PASSPORT_WORKER" '{
             name: $name,
             compatibility_date: "2026-10-01",
-            assets: { directory: "./site" },
-            workers_dev: false,
-            preview_urls: false
+            assets: { directory: "./site" }
           }' > _publish/wrangler.json
           cat _publish/wrangler.json
+
+      # The custom domain must be the only address, since Cloudflare Access
+      # guards it; workers.dev and per-version preview URLs would each be a
+      # second, unguarded one. Wrangler treats both as triggers, which only
+      # `wrangler deploy` applies, so they are set here through the Worker's own
+      # subdomain API before any new version goes out. That API covers
+      # workers.dev and preview URLs only, never the custom domain. If Cloudflare
+      # does not confirm both are off, the run stops and the version already
+      # live keeps serving.
+      - name: Keep workers.dev and preview URLs off
+        if: hashFiles('_publish/site/index.html') != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PASSPORT_WORKER: ${{ vars.PASSPORT_WORKER || 'passport' }}
+        run: |
+          URL="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${PASSPORT_WORKER}/subdomain"
+          curl -sS -X POST "$URL" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"enabled":false,"previews_enabled":false}' > "$RUNNER_TEMP/subdomain.json"
+          if ! jq -e '.success and .result.enabled == false and .result.previews_enabled == false' \
+               "$RUNNER_TEMP/subdomain.json" > /dev/null; then
+            echo "Cloudflare did not confirm workers.dev and preview URLs are off:"
+            jq -c '{success, errors, result}' "$RUNNER_TEMP/subdomain.json"
+            exit 1
+          fi
+          echo "workers.dev and preview URLs are off for ${PASSPORT_WORKER}"
 
       # Two steps rather than `wrangler deploy`, which re-applies the custom
       # domain on every run and so needs Workers Routes Write on the whole zone.
