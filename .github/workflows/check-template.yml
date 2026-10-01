@@ -113,6 +113,46 @@ jobs:
           fi
           echo "check-instance.yml is gated and reads what sync.yml reads"
 
+      # publish-passport.yml is skipped in atdr/contrail-gh on every run, so
+      # nothing here ever exercises it. Its guard has two halves and both are
+      # load-bearing: drop the repository half and atdr/contrail-gh tries to
+      # deploy; drop the variable half and every repo that never opted in fails
+      # after every sync for want of a token. The Worker settings are checked
+      # for the same reason, since each one is what keeps the page private.
+      - name: publish-passport.yml must stay opt-in, and publish only the page
+        run: |
+          F=.github/workflows/publish-passport.yml
+          if [ ! -f "$F" ]; then
+            echo "$F is missing. The README's Publishing the Passport section"
+            echo "describes it, and it ships from here."
+            exit 1
+          fi
+
+          STATUS=0
+          GUARD=$(grep -E '^[[:space:]]+if:' "$F" | head -1)
+          for want in "github.repository != 'atdr/contrail-gh'" \
+                      "vars.PASSPORT_HOSTNAME != ''"; do
+            if [[ "$GUARD" != *"$want"* ]]; then
+              echo "$F's job guard has lost: ${want}"
+              STATUS=1
+            fi
+          done
+
+          # The assets directory must be the staged one: pointing it at the
+          # checkout would serve the CSV, the raw log and every export.
+          for want in 'workers_dev: false' 'preview_urls: false' \
+                      'assets: { directory: "./site" }'; do
+            if ! grep -qF "$want" "$F"; then
+              echo "$F no longer writes: ${want}"
+              STATUS=1
+            fi
+          done
+
+          if [ "$STATUS" -ne 0 ]; then
+            exit 1
+          fi
+          echo "publish-passport.yml is opt-in and publishes only the page"
+
       # markdown.yml and surface-check.yml are each called by both
       # check-template.yml and check-instance.yml so that the template and every
       # repo created from it check the same things the same way. The call from

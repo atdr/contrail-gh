@@ -160,7 +160,9 @@ configuration needed.
 deploys the Passport to Cloudflare, which most instances never set up, so it
 also waits for an owner to set the `PASSPORT_HOSTNAME` repository variable. Keep
 both halves of its guard: without the variable check, every instance that never
-opted in fails after every sync for want of a token. `atdr/contrail-gh` must
+opted in fails after every sync for want of a token. The job never runs in
+`atdr/contrail-gh`, so `check-template.yml` checks both halves statically, along
+with the Worker settings that keep the page private. `atdr/contrail-gh` must
 never set that variable. The setup is in the README, under "Publishing the
 Passport".
 
