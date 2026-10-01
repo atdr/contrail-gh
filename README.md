@@ -143,7 +143,9 @@ See [contrail's README](https://github.com/atdr/contrail#passport) for the optio
 Optional, and off unless you switch it on. `publish-passport.yml` can deploy your `passport.html`
 after every sync to a hostname you own, say `passport.example.com`, served by a Cloudflare Worker
 and visible only to you through Cloudflare Access. It needs a domain on Cloudflare and a Zero Trust
-team; both are free at this scale.
+team, both free at this scale, and a paid GitHub plan (Pro, Team or Enterprise) on the account that
+owns your repo. Step 4 keeps the Cloudflare token in a GitHub environment limited to `main`, and
+GitHub Free offers no environments in private repos. This setup has not been tried without one.
 
 Weigh this first: it puts a second copy of your itinerary on Cloudflare, and that copy is private
 only for as long as your Access policy is right. Nothing in GitHub would tell you if it stopped
