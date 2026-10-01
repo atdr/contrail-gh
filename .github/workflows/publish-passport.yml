@@ -32,8 +32,10 @@ on:
 permissions:
   contents: read
 
-# Two triggers can land together (a merge during a sync). Queue, don't cancel:
-# the later run deploys the later main either way.
+# Two triggers can land together (a merge during a sync). A deploy already
+# running is left to finish; GitHub keeps at most one more waiting and replaces
+# it with any newer arrival. Losing a waiting run is harmless, because every run
+# checks out main as it is when it starts.
 concurrency:
   group: publish-passport
   cancel-in-progress: false
