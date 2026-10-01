@@ -143,9 +143,7 @@ See [contrail's README](https://github.com/atdr/contrail#passport) for the optio
 Optional, and off unless you switch it on. `publish-passport.yml` can deploy your `passport.html`
 after every sync to a hostname you own, say `passport.example.com`, served by a Cloudflare Worker
 and visible only to you through Cloudflare Access. It needs a domain on Cloudflare and a Zero Trust
-team, both free at this scale, and a paid GitHub plan (Pro, Team or Enterprise) on the account that
-owns your repo. Step 4 keeps the Cloudflare token in a GitHub environment limited to `main`, and
-GitHub Free offers no environments in private repos. This setup has not been tried without one.
+team, both free at this scale. A paid GitHub plan helps but isn't required: see step 4.
 
 Weigh this first: it puts a second copy of your itinerary on Cloudflare, and that copy is private
 only for as long as your Access policy is right. Nothing in GitHub would tell you if it stopped
@@ -200,6 +198,22 @@ that last, in this order:
    gh secret set CLOUDFLARE_API_TOKEN --env cloudflare -R octocat/my-contrail
    gh secret set CLOUDFLARE_ACCOUNT_ID --env cloudflare -R octocat/my-contrail
    ```
+
+   **On GitHub Free** there are no environments in private repos; they need Pro, Team or
+   Enterprise on the account that owns your repo. Use repository secrets instead, and tell the
+   workflow not to ask for the environment:
+
+   ```bash
+   gh secret set CLOUDFLARE_API_TOKEN -R octocat/my-contrail
+   gh secret set CLOUDFLARE_ACCOUNT_ID -R octocat/my-contrail
+   gh variable set PASSPORT_NO_ENVIRONMENT -R octocat/my-contrail --body true
+   ```
+
+   What that gives up: a workflow on any branch of your repo can read a repository secret, so
+   anyone able to push a branch could take the token. In a private repo only you have created
+   that's you and anyone you've added; Dependabot runs and pull requests from forks don't get
+   repository secrets. Since the token can only rewrite the one Worker, the extra exposure is
+   small.
 
 5. **Switch it on** with the variables, then run the workflow once by hand:
 
