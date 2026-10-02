@@ -281,7 +281,7 @@ delayed. Change the `cron:` line if you'd rather it ran at another time.
 `check-template.yml` all install from it:
 
 ```text
-contrails==0.7.0
+contrails==0.7.1
 ```
 
 It's pinned to an exact version rather than tracking `main` so a change upstream can never
