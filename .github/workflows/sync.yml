@@ -45,7 +45,21 @@ jobs:
       - name: Install contrail
         run: pip install -r requirements.txt
 
+      # Passport is the log as an interactive dashboard, committed alongside
+      # it and exactly as private: never make a repo holding either public.
+      #
+      # --passport builds it after the log is saved, and only replaces the
+      # committed copy when something besides its generatedAt stamp changed: a
+      # changed log, a flight departing, or a contrail upgrade changing the
+      # page, without a new 800 KB version in history every day. It skips a
+      # header-only log, which is where a new repo starts.
+      #
+      # Exit 3 means the log was saved but the page failed. That must never
+      # cost this sync's data, so it is recorded rather than raised: the commit
+      # still runs, and the last step turns the run red afterwards. Any other
+      # failure is the sync's own and stops the job here, as before.
       - name: Sync
+        id: sync
         env:
           TRIPIT_ICAL_URL: ${{ secrets.TRIPIT_ICAL_URL }}
           TIM_API_KEY: ${{ secrets.TIM_API_KEY }}
@@ -55,38 +69,13 @@ jobs:
           # in contrail's env config, so it owns any row both describe and the
           # export fills in blanks like the cabin actually flown.
           FLIGHTY_CSV_PATH: flighty/
-        run: contrail sync --csv-path flight_emissions.csv
-
-      # Passport is the log as an interactive dashboard, committed alongside
-      # it and exactly as private: never make a repo holding either public.
-      #
-      # Built every run, but only replaces the committed copy when something
-      # besides its generatedAt stamp changed. The stamp and each flight's
-      # departed flag are the only parts that depend on the clock, so this
-      # catches a changed log, a flight departing, and a contrail upgrade
-      # changing the page, without a new 800 KB version in history every day.
-      #
-      # contrail refuses to build one from a log with no flights, which is where
-      # a new repo starts, so a header-only log skips it.
-      #
-      # continue-on-error so a Passport failure can never cost this sync's data:
-      # the commit still runs, and the last step turns the run red afterwards.
-      - name: Build the Passport
-        id: passport
-        continue-on-error: true
         run: |
-          if [ "$(wc -l < flight_emissions.csv)" -le 1 ]; then
-            echo "No flights in the log yet, so no Passport this run."
-            exit 0
-          fi
-          NEW="$RUNNER_TEMP/passport.html"
-          contrail passport --csv-path flight_emissions.csv --output "$NEW"
-          strip() { sed -E 's/"generatedAt":"[^"]*"//' "$1"; }
-          if [ -f passport.html ] && cmp -s <(strip passport.html) <(strip "$NEW"); then
-            echo "Passport unchanged apart from its timestamp; keeping the committed copy."
-          else
-            mv "$NEW" passport.html
-            echo "Passport updated."
+          status=0
+          contrail sync --csv-path flight_emissions.csv --passport || status=$?
+          if [ "$status" -eq 3 ]; then
+            echo "passport_failed=true" >> "$GITHUB_OUTPUT"
+          elif [ "$status" -ne 0 ]; then
+            exit "$status"
           fi
 
       - name: Keepalive marker
@@ -117,7 +106,7 @@ jobs:
 
 
       - name: Fail the run if the Passport did not build
-        if: steps.passport.outcome == 'failure'
+        if: steps.sync.outputs.passport_failed == 'true'
         run: |
-          echo "The sync was committed, but the Passport step failed. See its log above."
+          echo "The sync was committed, but the Passport did not build. See the Sync step's log above."
           exit 1
