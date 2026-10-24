@@ -80,7 +80,7 @@ jobs:
       #
       # Only _publish/site is uploaded, and it holds nothing but the Passport.
       # Never point assets at the checkout root: that would serve the CSV, the
-      # raw log and every Flighty export alongside it.
+      # raw log and every export alongside it.
       #
       # There are no routes here on purpose. The custom domain is attached once,
       # by hand, when the Worker is created (see the README), and the deploy

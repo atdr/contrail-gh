@@ -32,6 +32,7 @@
   ],
   "importers": [
     "flighty_csv",
+    "openflights_csv",
     "tripit_ical"
   ],
   "providers": [

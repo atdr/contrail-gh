@@ -52,6 +52,7 @@ jobs:
           # Must match sync.yml, or this check reads a different set of sources
           # than the sync does. check-template.yml holds the two files to that.
           FLIGHTY_CSV_PATH: flighty/
+          OPENFLIGHTS_CSV_PATH: openflights/
           # TIM_API_KEY is deliberately absent. --dry-run returns before it ever
           # builds an emissions provider, so the key would go unused: handing it
           # to this job would grant a secret to a step that cannot reach the
@@ -99,7 +100,7 @@ jobs:
           # is not treated as losing one.
           DELETED=$(git diff --name-only --diff-filter=D "$BASE" HEAD || true)
           LOST=$(printf '%s\n' "$DELETED" \
-                 | grep -Ei '^flight_emissions\.(csv|raw\.jsonl)$|^flighty/.*\.csv$' || true)
+                 | grep -Ei '^flight_emissions\.(csv|raw\.jsonl)$|^(flighty|openflights)/.*\.csv$' || true)
           if [ -n "$LOST" ]; then
             echo "This pull request deletes flight data:"
             echo "$LOST"

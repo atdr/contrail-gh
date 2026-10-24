@@ -69,6 +69,11 @@ jobs:
           # in contrail's env config, so it owns any row both describe and the
           # export fills in blanks like the cabin actually flown.
           FLIGHTY_CSV_PATH: flighty/
+          # An OpenFlights backup committed to openflights/, if you keep one.
+          # Absent is fine here too. contrail lists it after the two above, and
+          # reads only the newest backup: everything in it is typed by hand, so
+          # it fills blanks on a flight another source has and never owns one.
+          OPENFLIGHTS_CSV_PATH: openflights/
         run: |
           status=0
           contrail sync --csv-path flight_emissions.csv --passport || status=$?
