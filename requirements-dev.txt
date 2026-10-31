@@ -19,4 +19,4 @@ mdformat-gfm==1.0.0
 # telling. Extensions like this are fine — it is *codeformatter* plugins
 # (mdformat-black and the like) that must never be added, because mdformat
 # enables every installed one and would reformat the code inside fences.
-mdformat-frontmatter==2.1.2
+mdformat-frontmatter==2.2.0
