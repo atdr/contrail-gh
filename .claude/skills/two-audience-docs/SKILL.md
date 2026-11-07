@@ -1,6 +1,6 @@
 ---
 name: two-audience-docs
-description: Use when writing or editing any Markdown in contrail-gh — README.md, AGENTS.md, flighty/README.md, or a new doc — and when copying a doc between the template and a repo created from it. Every file here is copied wholesale by "Use this template", so a line written for one repo arrives as an instruction in the other, where it may be false or destructive.
+description: Use when writing or editing any Markdown in contrail-gh — README.md, AGENTS.md, flighty/README.md, openflights/README.md, or a new doc — and when copying a doc between the template and a repo created from it. Every file here is copied wholesale by "Use this template", so a line written for one repo arrives as an instruction in the other, where it may be false or destructive.
 ---
 
 # Docs here have two readers
@@ -14,6 +14,7 @@ places:
 | Visibility             | public             | private                |
 | `flight_emissions.csv` | header row only    | real flights           |
 | `flighty/`             | must hold no CSV   | the owner's exports    |
+| `openflights/`         | must hold no CSV   | the owner's backup     |
 
 The rules are near-opposites, and the data at stake is unrecoverable: contrail
 cannot re-price a departed flight, and an export is someone's entire flying

@@ -3,10 +3,11 @@
 A GitHub Actions setup that runs [contrail](https://github.com/atdr/contrail) on a schedule and
 keeps a log of your flight emissions in your own private repo.
 
-Every day it reads your TripIt calendar feed (and any Flighty exports you add), prices any new
-flights using Google's [Travel Impact Model](https://travelimpactmodel.org/about-tim), and commits
-the results back: the log in `flight_emissions.csv`, every raw emissions answer behind it, and a
-Passport, an interactive dashboard of your flying. No server, no machine to maintain.
+Every day it reads your TripIt calendar feed (and any Flighty export or OpenFlights backup you
+add), prices any new flights using Google's
+[Travel Impact Model](https://travelimpactmodel.org/about-tim), and commits the results back:
+the log in `flight_emissions.csv`, every raw emissions answer behind it, and a Passport, an
+interactive dashboard of your flying. No server, no machine to maintain.
 
 Your flight history and your API keys stay in **your** repo. This template contains no data and
 no secrets, and contrail itself is installed from PyPI at a pinned version.
@@ -80,6 +81,18 @@ first, and the newest wins where two disagree.
 
 Skip this entirely and nothing breaks — an empty `flighty/` is an ordinary state, and the sync runs
 on TripIt alone. See [`flighty/README.md`](flighty/README.md) for the detail.
+
+### 5. Optional: add an OpenFlights backup
+
+If you logged flights in [OpenFlights](https://openflights.org), often for years before anything
+else, back them up (Settings → Backup to CSV) and commit the file to `openflights/`. The next sync
+picks it up. Only the newest backup is read, so replace the old file when you take a new one.
+
+Everything in a backup was typed by hand, so it ranks last: TripIt and Flighty own any flight they
+also have, and the backup only fills in blanks. A departure just after midnight is easily entered
+under the day before, and contrail warns when a flight looks one day off another source's. Adding
+the backup in a pull request lets `check-instance` show those warnings before anything is written.
+See [`openflights/README.md`](openflights/README.md) for the detail.
 
 ## What you get
 
@@ -281,7 +294,7 @@ delayed. Change the `cron:` line if you'd rather it ran at another time.
 `check-template.yml` all install from it:
 
 ```text
-contrails==0.7.1
+contrails==0.8.0
 ```
 
 It's pinned to an exact version rather than tracking `main` so a change upstream can never
@@ -321,8 +334,8 @@ Two things it deliberately does not do:
 
 It also refuses a pull request that **deletes flight data** — a row gone from
 `flight_emissions.csv`, a deleted `flight_emissions.raw.jsonl`, or a deleted export in
-`flighty/`. Editing a row in place is fine and expected; deleting one throws away a
-figure that usually can't be fetched again. When a deletion really is what you mean, add
+`flighty/` or `openflights/`. Editing a row in place is fine and expected; deleting one throws
+away a figure that usually can't be fetched again. When a deletion really is what you mean, add
 the label `allow-data-loss` to the pull request.
 
 The job is skipped in `atdr/contrail-gh`, which has no feed, no secrets and no log to
@@ -375,11 +388,12 @@ The files fall into three groups:
   of yours, but you may have edited your README, so they are left out of the command. Diff them
   with `git diff template/main -- README.md AGENTS.md .claude/` and take what you want.
 - **Yours, never pulled:** `flight_emissions.csv`, `flight_emissions.raw.jsonl`, `passport.html`
-  and any exports in `flighty/`. The template has a header-only CSV and none of the rest.
+  and any exports in `flighty/` or `openflights/`. The template has a header-only CSV and none of
+  the rest.
   `last_checked.txt` is regenerated every run and can be ignored either way.
 
-`flighty/` is the one directory holding both: its `README.md` is
-template-owned, while any `FlightyExport-*.csv` beside it is yours. The
+`flighty/` and `openflights/` are the two directories holding both: each
+`README.md` is template-owned, while any CSV beside it is yours. The
 template ships no exports, so pulling can't delete one — but if you
 resolve conflicts by taking the template wholesale, keep your exports.
 
@@ -459,8 +473,8 @@ onwards. If you see a pattern of these, it's worth
 [opening an issue](https://github.com/atdr/contrail/issues) on contrail.
 
 **A pull request fails on "must not delete flight data".** It removes a row, the raw log,
-or a `flighty/` export. Usually that's a merge or a rebase gone sideways rather than an
-intention, so check the diff first. If you did mean it — replacing a superseded export,
+or an export in `flighty/` or `openflights/`. Usually that's a merge or a rebase gone sideways
+rather than an intention, so check the diff first. If you did mean it — replacing a superseded export,
 say — add the label `allow-data-loss` to the pull request and re-run the check.
 
 **`passport.html` didn't change after a sync.** That's expected. A sync rebuilds it but only

@@ -310,19 +310,20 @@ jobs:
             exit 1
           fi
 
-          # The sharpest of the three. A Flighty export is an entire flight
-          # history in one file, and unlike the log it arrives by hand, so
-          # nothing else would catch it.
+          # The sharpest of the three. A Flighty export or an OpenFlights
+          # backup is an entire flight history in one file, and unlike the log
+          # it arrives by hand, so nothing else would catch it.
           #
           # -iname because a file saved as .CSV leaks exactly as much, and
-          # `|| true` because find exits 1 when flighty/ is absent, which under
-          # `bash -e` would abort this step with an empty log and no reason.
-          FOUND=$(find flighty -iname '*.csv' 2>/dev/null || true)
+          # `|| true` because find exits 1 when a directory is absent, which
+          # under `bash -e` would abort this step with an empty log and no
+          # reason.
+          FOUND=$(find flighty openflights -iname '*.csv' 2>/dev/null || true)
           if [ -n "$FOUND" ]; then
-            echo "flighty/ holds a CSV in the public template:"
+            echo "An export directory holds a CSV in the public template:"
             echo "$FOUND"
-            echo "A Flighty export is someone's entire travel history. Exports belong"
-            echo "only in a private repo created from this one."
+            echo "A Flighty export or an OpenFlights backup is someone's entire travel"
+            echo "history. Exports belong only in a private repo created from this one."
             exit 1
           fi
 
@@ -346,10 +347,11 @@ jobs:
       # caught, so look at every commit. Needs fetch-depth: 0 above.
       - name: No export may ever have been committed here
         run: |
-          LEAKED=$(git log --all --diff-filter=A --name-only --format= -- 'flighty/*' \
+          LEAKED=$(git log --all --diff-filter=A --name-only --format= \
+                     -- 'flighty/*' 'openflights/*' \
                    | grep -i '\.csv$' | sort -u || true)
           if [ -n "$LEAKED" ]; then
-            echo "A Flighty export exists in this repository's history:"
+            echo "An export exists in this repository's history:"
             echo "$LEAKED"
             echo
             echo "Deleting it in a later commit does not help — the file is still"

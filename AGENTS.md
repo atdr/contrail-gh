@@ -42,6 +42,7 @@ confidently wrong destroys data, prefer the detector that fails loudly.
 | `flight_emissions.csv`       | header row only                   | real flights, and it grows               |
 | `flight_emissions.raw.jsonl` | must not exist                    | present once a sync has run              |
 | `flighty/`                   | empty of CSVs                     | the owner's exports, committed by hand   |
+| `openflights/`               | empty of CSVs                     | the owner's backup, committed by hand    |
 | `passport.html`              | must not exist                    | committed by the sync, like the CSV      |
 | Actions secrets              | none                              | `TRIPIT_ICAL_URL`, `TIM_API_KEY`         |
 | Passport publishing          | never: no `PASSPORT_HOSTNAME`     | optional, off until the owner sets it    |
@@ -73,11 +74,16 @@ departed, and the calendar feed only carries recent trips.
   leaves it alone is working as intended, not stuck.
 - **Never make this repo public**, and never copy its contents into a public
   one. The CSV is an itinerary; the raw log is worse; the Passport is the same
-  itinerary as a page anyone can open; an export in `flighty/` is the owner's
-  entire flying history in one file.
+  itinerary as a page anyone can open; an export in `flighty/` or a backup in
+  `openflights/` is the owner's entire flying history in one file.
 - Exports in `flighty/` are committed on purpose and are read by every sync.
   Don't tidy them away. Re-exporting is safe — Flighty ids are stable, so a
   re-export re-prices nothing.
+- A backup in `openflights/` is committed on purpose too, but only the newest
+  is read, since each is the whole account. Don't delete an older one on your
+  own initiative; the owner decides. A `DAY OFF?` warning from a sync or a
+  `check-instance` dry run is the owner's to resolve: never edit a row's date
+  or delete a row to silence it.
 - Upgrading contrail means merging the Dependabot pull request that bumps the
   pin in `requirements.txt`. Check
   [contrail's releases](https://github.com/atdr/contrail/releases) for what
@@ -110,17 +116,19 @@ departed, and the calendar feed only carries recent trips.
 **`atdr/contrail-gh` must never hold flight data**, because it is public. In the
 template, and only there, `flight_emissions.csv` is the header row and nothing
 else, `flight_emissions.raw.jsonl` and `passport.html` must not exist, and
-`flighty/` must hold no CSV. `check-template.yml` enforces all four (the
-Passport as any HTML file, since `--output` can name it anything) and is gated
-to `atdr/contrail-gh` by repository name, so it does nothing in a repo created
-from the template — where all four files are the point.
+`flighty/` and `openflights/` must hold no CSV. `check-template.yml` enforces
+all of it (the Passport as any HTML file, since `--output` can name it
+anything) and is gated to `atdr/contrail-gh` by repository name, so it does
+nothing in a repo created from the template — where every one of those files is
+the point.
 
-`flighty/` is the sharpest of them. A Flighty export is an entire travel history
-in one file, and unlike the log it is a file someone puts there by hand, so
-nothing else would catch it. It is checked twice — the tree, and every commit,
-since removing an export in a later commit leaves it in the history of a public
-repo. Both run after a push, so they are a backstop: an export that reaches a
-public branch should be assumed disclosed, not merely caught.
+The export directories are the sharpest of them. A Flighty export or an
+OpenFlights backup is an entire travel history in one file, and unlike the log
+it is a file someone puts there by hand, so nothing else would catch it. It is
+checked twice — the tree, and every commit, since removing an export in a later
+commit leaves it in the history of a public repo. Both run after a push, so
+they are a backstop: an export that reaches a public branch should be assumed
+disclosed, not merely caught.
 
 **The header must match the contrail version `requirements.txt` pins** — the
 pinned version, not contrail's `main`. Regenerate it after installing that
