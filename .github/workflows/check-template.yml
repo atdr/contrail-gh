@@ -230,6 +230,31 @@ jobs:
       # pull request guessing which of these files to open. Keeping the name
       # equal to the filename makes that mapping mechanical; the job name is
       # where the description goes.
+      # checks.yml and pull-request.yml come from atdr/github-boilerplate and
+      # hold atdr's own conventions. A repo created from the template copies
+      # them, so every job in both must stay guarded to atdr/contrail-gh, or
+      # an instance owner's pull requests start failing on rules that were
+      # never theirs. Each file's job count and guard count must agree.
+      - name: The boilerplate workflows must stay template-only
+        run: |
+          STATUS=0
+          for F in .github/workflows/checks.yml .github/workflows/pull-request.yml; do
+            if [ ! -f "$F" ]; then
+              echo "$F is missing. The ruleset requires its gate."
+              STATUS=1
+              continue
+            fi
+            # Jobs sit at two spaces of indent under `jobs:`; guards at four.
+            JOBS=$(sed -n '/^jobs:/,$p' "$F" | grep -cE '^  [a-z][a-z-]*:$')
+            GUARDS=$(grep -cE "^    if: .*github.repository == 'atdr/contrail-gh'" "$F")
+            if [ "$JOBS" -eq 0 ] || [ "$JOBS" -ne "$GUARDS" ]; then
+              echo "$F has $JOBS job(s) but $GUARDS guard(s). Every job needs:"
+              echo "  if: github.repository == 'atdr/contrail-gh' (alone, or joined with &&)"
+              STATUS=1
+            fi
+          done
+          exit "$STATUS"
+
       - name: Every workflow must be named after its file
         run: |
           # GitHub accepts either extension, so both are globbed. nullglob

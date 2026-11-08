@@ -10,6 +10,13 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+    # Dependabot counts each atdr/github-boilerplate workflow as its own
+    # dependency, so one boilerplate release would open a PR per pinned file.
+    # Grouped, the pins move together.
+    groups:
+      github-boilerplate:
+        patterns:
+          - "atdr/github-boilerplate*"
 
   # Proposes the contrail bump in requirements.txt, which sync.yml,
   # check-instance.yml and check-template.yml all install from. It only ever
@@ -24,4 +31,5 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: chore
+      prefix-development: chore
       include: scope
