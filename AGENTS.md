@@ -150,6 +150,8 @@ load-bearing:**
 | ---------------------- | ------------------------------------------------------- | --------------------- |
 | `check-template.yml`   | `if: github.repository == 'atdr/contrail-gh'`           | the template only     |
 | `tag-pin.yml`          | `if: github.repository == 'atdr/contrail-gh'`           | the template only     |
+| `checks.yml`           | the template guard, on every job                        | the template only     |
+| `pull-request.yml`     | the template guard, on every job                        | the template only     |
 | `sync.yml`             | `if: github.repository != 'atdr/contrail-gh'`           | instances only        |
 | `check-instance.yml`   | `if: github.repository != 'atdr/contrail-gh'`           | instances only        |
 | `publish-passport.yml` | the instance guard, plus `vars.PASSPORT_HOSTNAME != ''` | instances that opt in |
@@ -173,6 +175,15 @@ opted in fails after every sync for want of a token. The job never runs in
 with the Worker settings that keep the page private. `atdr/contrail-gh` must
 never set that variable. The setup is in the README, under "Publishing the
 Passport".
+
+`checks.yml` (atdr's conventions check) and `pull-request.yml` (conventional
+commit types for every commit and the PR title) come from
+[atdr/github-boilerplate](https://github.com/atdr/github-boilerplate), pinned by
+tag. They hold atdr's rules for `atdr/contrail-gh`, not rules for your own repo,
+so every job in both carries the template guard, gate included, and
+`check-template.yml` fails if one loses it. The `main` ruleset in
+`atdr/contrail-gh` requires their two gates, `checks gate` and
+`pull-request gate`.
 
 `markdown.yml` and `surface-check.yml` are the exception, and deliberately so:
 neither carries a guard because neither ever triggers on its own.
@@ -246,7 +257,7 @@ by default since February 2023; without it the commit-back step 403s.
 **Every workflow is named after its own file**, and the description goes on the
 job. GitHub labels a check `<workflow name> / <job name>` and never shows the
 filename, so a workflow named for what it does leaves a reader guessing which of
-the six files to open — `check-template / template contract` names both. A
+the workflow files to open — `check-template / template contract` names both. A
 workflow reached through `workflow_call` adds a third segment, the calling job's:
 `check-template / markdown / lint`. In `atdr/contrail-gh`, `check-template.yml`
 fails the build when a workflow's name and its filename disagree; the job names

@@ -1,0 +1,49 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Pull requests share a group per branch, so a new push cancels the run it
+# supersedes. Every other run gets a group of its own: GitHub keeps only one
+# pending run per group and drops the older for a newer, even with
+# cancel-in-progress false, so a shared group on main would leave commits
+# with no result. Each commit on main keeps its own, so a red one points at
+# the commit that broke it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# atdr's conventions check, in atdr/contrail-gh only: like check-template.yml
+# and tag-pin.yml, every job here is guarded by repository name, because a repo
+# created from the template copies this file too, and an instance owner is not
+# held to atdr's conventions. Markdown is not checked here: check-template.yml
+# and check-instance.yml already call markdown.yml, so instances lint too.
+jobs:
+  conventions:
+    if: github.repository == 'atdr/contrail-gh'
+    uses: atdr/github-boilerplate/.github/workflows/conventions.yml@v0.3.2
+
+  # The one check branch protection requires from this workflow.
+  gate:
+    name: checks gate
+    # Not always(): a run superseded by a newer one is cancelled, and its gate
+    # would report a failure on the same commit the newer run is checking.
+    if: ${{ github.repository == 'atdr/contrail-gh' && !cancelled() }}
+    needs: [conventions]
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every job to have passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            case "$result" in
+              failure|cancelled) echo "::error::a required job finished as $result"; exit 1 ;;
+            esac
+          done

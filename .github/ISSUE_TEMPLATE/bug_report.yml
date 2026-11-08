@@ -1,0 +1,63 @@
+name: Bug report
+description: A sync, a check or the Passport in contrail-gh or your own repo went wrong
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this.
+
+        Please write in plain English: short sentences, everyday words, and exactly what you saw. There is no need to write it up formally.
+
+        **Do not paste your `TRIPIT_ICAL_URL`, your `TIM_API_KEY`, or rows from your `flight_emissions.csv`.** The feed URL alone lets anyone read your itineraries, and the CSV is your travel history. Describe what is configured, not its values.
+
+        A problem with how contrail parses or prices a flight belongs in [atdr/contrail](https://github.com/atdr/contrail/issues). This tracker is for the workflows, the setup and the docs.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before reporting
+      options:
+        - label: I searched the existing issues for this problem
+          required: true
+        - label: My repo is on the latest template files (see "Staying up to date" in the README)
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: contrail version
+      description: The pin in your repo's `requirements.txt`.
+      placeholder: contrails==0.8.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Workflow log
+      description: The failing step's output from the Actions run. Check it for secrets and flight details before pasting.
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Workflow
+      options:
+        - sync
+        - check-instance
+        - publish-passport
+        - check-template
+        - Other, or not a workflow
+    validations:
+      required: true
