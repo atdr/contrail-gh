@@ -245,7 +245,10 @@ jobs:
               continue
             fi
             # Jobs sit at two spaces of indent under `jobs:`; guards at four.
-            JOBS=$(sed -n '/^jobs:/,$p' "$F" | grep -cE '^  [a-z][a-z-]*:$')
+            # A job ID may be any of GitHub's alphabet (a letter or `_`, then
+            # letters, digits, `-` or `_`), so count all of it: a narrower
+            # pattern would let a job like `extra_2` in unguarded.
+            JOBS=$(sed -n '/^jobs:/,$p' "$F" | grep -cE '^  [A-Za-z_][A-Za-z0-9_-]*:[[:space:]]*$')
             GUARDS=$(grep -cE "^    if: .*github.repository == 'atdr/contrail-gh'" "$F")
             if [ "$JOBS" -eq 0 ] || [ "$JOBS" -ne "$GUARDS" ]; then
               echo "$F has $JOBS job(s) but $GUARDS guard(s). Every job needs:"
