@@ -150,6 +150,7 @@ load-bearing:**
 | ---------------------- | ------------------------------------------------------- | --------------------- |
 | `check-template.yml`   | `if: github.repository == 'atdr/contrail-gh'`           | the template only     |
 | `tag-pin.yml`          | `if: github.repository == 'atdr/contrail-gh'`           | the template only     |
+| `pin-bump.yml`         | the template guard, plus Dependabot as author and actor | the template only     |
 | `checks.yml`           | the template guard, on every job                        | the template only     |
 | `pull-request.yml`     | the template guard, on every job                        | the template only     |
 | `sync.yml`             | `if: github.repository != 'atdr/contrail-gh'`           | instances only        |
@@ -161,8 +162,9 @@ load-bearing:**
 Removing one produces a workflow that fails forever in the wrong repo: the
 template checks assume a header-only CSV and would fail against real data, the
 sync and the pull request check have no secrets and nothing to log in
-`atdr/contrail-gh`, and `tag-pin.yml` tags contrail-gh's own history, which an
-instance has no business doing to itself. The guarded ones key off the
+`atdr/contrail-gh`, `tag-pin.yml` tags contrail-gh's own history, which an
+instance has no business doing to itself, and `pin-bump.yml` needs an App that
+only `atdr/contrail-gh` has. The guarded ones key off the
 repository name, so an instance is simply "not the template" — no per-user
 configuration needed.
 
@@ -319,3 +321,37 @@ tags the squash commit.
 Once anything is pushed to that branch, never comment `@dependabot rebase` or
 `@dependabot recreate` on the pull request: Dependabot rebuilds the branch from
 scratch and drops the pushed commits.
+
+### The mechanical reactions are committed for you, in `atdr/contrail-gh` only
+
+`pin-bump.yml` runs on Dependabot's pin-bump pull requests in
+`atdr/contrail-gh`. It installs the new pin and commits two reactions to
+Dependabot's branch: every `contrails==X.Y.Z` quoted in the Markdown and the
+issue templates, and the header of `flight_emissions.csv`. For a patch release
+that is usually the whole reaction, so the pull request goes green on its own
+and only needs reviewing and squashing.
+
+It never writes `contrail-surface.json`. That file is what fails the `surface`
+check when a release adds an importer, a registry id or a subcommand, and the
+failure is what makes a person read the guidance and decide what the template
+owes. When the surface differs, the workflow comments the diff and the
+regenerated file on the pull request instead. Make the reactions the guidance
+calls for, then commit that file last.
+
+Its own commit counts as "anything pushed to that branch" above, so the same
+rule applies from the moment it lands.
+
+It commits with a GitHub App rather than `GITHUB_TOKEN`, because a push made
+with `GITHUB_TOKEN` starts no workflow runs and would leave the checks red on
+Dependabot's commit. Setting it up in `atdr/contrail-gh`, once:
+
+1. Create a GitHub App owned by the account that owns `atdr/contrail-gh`, with
+   the webhook off and one repository permission, Contents: read and write.
+2. Install it on `atdr/contrail-gh` alone.
+3. Generate a private key, then add two **Dependabot** secrets (Settings →
+   Secrets and variables → Dependabot, not Actions, since a run Dependabot
+   triggers can read no other kind): `PIN_BUMP_APP_CLIENT_ID` with the App's
+   client ID, and `PIN_BUMP_APP_PRIVATE_KEY` with the whole `.pem`.
+
+Without the secrets, the workflow fails at minting a token. Nothing is
+committed and the bump can still be finished by hand.
