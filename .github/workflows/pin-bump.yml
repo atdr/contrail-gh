@@ -1,0 +1,264 @@
+# Writes the mechanical half of the template's reaction to a contrail pin bump
+# onto Dependabot's own branch, so the pull request arrives with those fixes
+# already made rather than only diagnosed by check-template.yml. This is the
+# first half of atdr/contrail-gh#18.
+#
+# Mechanical means a pure function of the pinned release:
+#   - every `contrails==X.Y.Z` quoted in the Markdown and the issue templates
+#   - the header row of flight_emissions.csv
+#
+# contrail-surface.json is deliberately NOT written. It is what makes
+# surface-check.yml fail when a release adds an importer, a registry id or a
+# subcommand, and that failure is the only thing that makes a person read its
+# guidance. Regenerating it here would turn the check green on exactly the
+# bumps that need judgment. When the surface differs, this workflow comments
+# the diff and the regenerated file instead, for a person to commit once the
+# reactions the guidance calls for are done.
+#
+# Two jobs, because one of them has to run the release being proposed. The
+# first installs the pin and imports it, with a read-only token and no
+# secrets. The second never installs or runs anything from the branch: it reads
+# requirements.txt as text, rewrites the quotes itself, validates the header
+# the first job hands it, and only then mints a write token.
+#
+# It commits with a GitHub App token, not GITHUB_TOKEN. A push made with
+# GITHUB_TOKEN starts no workflow runs, so the regenerated files would sit
+# under the stale red checks of Dependabot's commit; the App's push is an
+# ordinary event and the checks run again on it. The App needs Contents: write
+# on atdr/contrail-gh alone, and its client ID and private key are Dependabot
+# secrets, the only kind a Dependabot-triggered run can read. AGENTS.md "When
+# contrail changes" has the setup.
+#
+# Only meaningful in the template itself. An instance pulls this file too, but
+# its own pin bump has nothing to react with: the template's reactions arrive
+# as template updates.
+name: pin-bump
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - requirements.txt
+
+permissions: {}
+
+concurrency:
+  # Dependabot can rebase its branch while a run is still working on the old
+  # head. The newer run is the one whose commit can land.
+  group: pin-bump-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    name: read the pinned release
+    timeout-minutes: 10
+    # Dependabot's own pushes only. The App's commit triggers this workflow
+    # again, with the App as actor, and has to stop here rather than loop.
+    if: >-
+      github.repository == 'atdr/contrail-gh' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      header: ${{ steps.read.outputs.header }}
+      comment: ${{ steps.read.outputs.comment }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install the contrail version this branch pins
+        run: pip install -r requirements.txt
+
+      # The surface is computed the same way as surface-check.yml and the
+      # recipe in atdr/contrail's docs/contrail-gh.md. If one changes shape,
+      # change all three.
+      - name: Read the header and the public surface
+        id: read
+        run: |
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import shutil
+          import subprocess
+
+          from contrail.storage.local_csv import CSV_FIELDS
+
+          def optional_import(module, name):
+              try:
+                  mod = __import__(module, fromlist=[name])
+                  return sorted(getattr(mod, name))
+              except (ImportError, AttributeError):
+                  return None
+
+          help_text = subprocess.run(
+              [shutil.which("contrail"), "--help"],
+              capture_output=True, text=True, check=True,
+          ).stdout
+          actual = {
+              "csv_fields": list(CSV_FIELDS),
+              "importers": optional_import("contrail.importers", "IMPORTERS"),
+              "providers": optional_import("contrail.emissions", "PROVIDERS"),
+              "storages": optional_import("contrail.storage", "STORAGES"),
+              "raw_logs": optional_import("contrail.storage", "RAW_LOGS"),
+              "subcommands": sorted(
+                  re.search(r"\{([\w,-]+)\}", help_text).group(1).split(",")
+              ),
+          }
+          with open("contrail-surface.json") as f:
+              expected = json.load(f)
+
+          comment = ""
+          if actual != expected:
+              lines = []
+              for key in sorted(set(actual) | set(expected)):
+                  a, e = actual.get(key) or [], expected.get(key) or []
+                  if a != e:
+                      added = [x for x in a if x not in e]
+                      removed = [x for x in e if x not in a]
+                      lines.append(f"- `{key}`: +{added} -{removed}")
+              regenerated = json.dumps(actual, indent=2, sort_keys=True)
+              comment = "\n".join([
+                  "<!-- pin-bump -->",
+                  "**The public surface changed, so this bump needs a person.**",
+                  "",
+                  "`pin-bump` committed the mechanical reactions (pin quotes, CSV "
+                  "header) but leaves `contrail-surface.json` alone on purpose:",
+                  "",
+                  *lines,
+                  "",
+                  "The failing `surface` check says what each change obliges, and "
+                  "atdr/contrail's `docs/contrail-gh.md` has the full table. Make "
+                  "those changes on this branch first. Then commit this file as "
+                  "the last step, to record that the diff was reviewed:",
+                  "",
+                  "<details><summary><code>contrail-surface.json</code> for this "
+                  "pin</summary>",
+                  "",
+                  "```json",
+                  regenerated,
+                  "```",
+                  "",
+                  "</details>",
+              ])
+              print("The surface differs; a comment will say how.")
+          else:
+              print("The surface matches contrail-surface.json.")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"header={','.join(CSV_FIELDS)}\n")
+              # Base64 because the comment is multi-line and holds a code fence.
+              out.write(f"comment={base64.b64encode(comment.encode()).decode()}\n")
+          PY
+
+  commit:
+    name: commit the mechanical reactions
+    timeout-minutes: 10
+    needs: regenerate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Rewrite the quoted pins and the header
+        id: rewrite
+        env:
+          HEADER: ${{ needs.regenerate.outputs.header }}
+        run: |
+          # Read as text, the way scripts/read-pin.sh does, without running
+          # anything from the branch.
+          PIN=$(grep -oE '^contrails==[0-9]+(\.[0-9]+)*' requirements.txt | head -1 | cut -d= -f3)
+          if [ -z "$PIN" ]; then
+            echo "No contrails pin found in requirements.txt. Has the file changed shape?"
+            exit 1
+          fi
+          echo "pin=$PIN" >> "$GITHUB_OUTPUT"
+          echo "requirements.txt pins $PIN"
+
+          # The same files check-template.yml reads, plus the issue templates,
+          # whose version placeholder drifts the same way. -z and the symlink
+          # skip for the same reasons as there: CLAUDE.md points at AGENTS.md.
+          # X.Y.Z placeholders have no digits and are left alone.
+          while IFS= read -r -d '' f; do
+            [ -L "$f" ] && continue
+            sed -i -E "s/contrails==[0-9]+(\.[0-9]+)*/contrails==${PIN}/g" "$f"
+          done < <(git ls-files -z '*.md' '.github/ISSUE_TEMPLATE/*.yml')
+
+          # The first job ran the release being proposed, so its output is
+          # checked before it is written: column names only, one line. In
+          # atdr/contrail-gh this file is the header and must never be more.
+          if ! [[ "$HEADER" =~ ^[a-z_]+(,[a-z_]+)*$ ]]; then
+            echo "The header from the first job doesn't look like one: $HEADER"
+            exit 1
+          fi
+          if [ "$(head -1 flight_emissions.csv | tr -d '\r')" != "$HEADER" ]; then
+            printf '%s\n' "$HEADER" > flight_emissions.csv
+          fi
+
+          # The same paths as the commit step's file_pattern, so "changed" means
+          # "there is something that step would commit".
+          PATHS=('*.md' '.github/ISSUE_TEMPLATE/*.yml' flight_emissions.csv)
+          git diff --stat -- "${PATHS[@]}"
+          if git diff --quiet -- "${PATHS[@]}"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing to commit: the branch already matches."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mint a token that can start workflow runs
+        if: steps.rewrite.outputs.changed == 'true'
+        id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.PIN_BUMP_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PIN_BUMP_APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Commit to Dependabot's branch
+        if: steps.rewrite.outputs.changed == 'true'
+        # The same action sync.yml commits with: through the GraphQL API, so
+        # the commit is signed. file_pattern names only what the step above
+        # may touch.
+        uses: planetscale/ghcommit-action@v0.2.22
+        with:
+          commit_message: "chore(deps): apply the mechanical reactions to contrails ${{ steps.rewrite.outputs.pin }}"
+          repo: ${{ github.repository }}
+          branch: ${{ github.head_ref }}
+          file_pattern: "*.md .github/ISSUE_TEMPLATE/*.yml flight_emissions.csv"
+        env:
+          GITHUB_TOKEN: ${{ steps.app.outputs.token }}
+
+      - name: Say what the surface change needs
+        if: needs.regenerate.outputs.comment != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT: ${{ needs.regenerate.outputs.comment }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          echo "$COMMENT" | base64 -d > "$RUNNER_TEMP/comment.md"
+          # One comment per pull request, updated if Dependabot rebases.
+          ID=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- pin-bump -->"))) | .id' \
+            | head -1)
+          if [ -n "$ID" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$ID" \
+              -F body=@"$RUNNER_TEMP/comment.md" > /dev/null
+          else
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
+          fi
