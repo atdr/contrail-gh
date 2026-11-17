@@ -28,7 +28,7 @@ body:
     attributes:
       label: contrail version
       description: The pin in your repo's `requirements.txt`.
-      placeholder: contrails==0.8.1
+      placeholder: contrails==0.9.0
     validations:
       required: true
 
