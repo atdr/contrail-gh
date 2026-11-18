@@ -26,7 +26,7 @@ concurrency:
 jobs:
   conventions:
     if: github.repository == 'atdr/contrail-gh'
-    uses: atdr/github-boilerplate/.github/workflows/conventions.yml@v0.3.2
+    uses: atdr/github-boilerplate/.github/workflows/conventions.yml@v0.4.0
 
   # The one check branch protection requires from this workflow.
   gate:
