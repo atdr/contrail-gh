@@ -1,9 +1,10 @@
 name: publish-passport
 
-# Optional, and off until you switch it on. Publishes your committed
-# passport.html to a hostname of your own, served by a Cloudflare Worker behind
-# Cloudflare Access, so the Passport opens as a page rather than as source on
-# github.com. Setup is in the README, under "Publishing the Passport".
+# Optional, and off until you switch it on. Publishes your committed Passport
+# (passport.html, or the passport/ folder when the repository variable
+# PASSPORT_FORMAT is "site") to a hostname of your own, served by a Cloudflare
+# Worker behind Cloudflare Access, so the Passport opens as a page rather than
+# as source on github.com. Setup is in the README, under "Publishing the Passport".
 #
 # It is switched on by one repository variable, PASSPORT_HOSTNAME. Without it the
 # job is skipped on every trigger, so a repo that never opts in never sees a
@@ -26,6 +27,7 @@ on:
     branches: [main]
     paths:
       - passport.html
+      - passport/**
       - .github/workflows/publish-passport.yml
   workflow_dispatch: {}
 
@@ -82,6 +84,12 @@ jobs:
       # Never point assets at the checkout root: that would serve the CSV, the
       # raw log and every export alongside it.
       #
+      # The format decides what is staged, not which files happen to exist: a
+      # repo that switches to the site folder may still hold its old
+      # passport.html, and publishing that would show a page that stopped
+      # updating. A site's page fetches data.json and its assets from its own
+      # origin, which the Worker serves, so the folder is copied whole.
+      #
       # There are no routes here on purpose. The custom domain is attached once,
       # by hand, when the Worker is created (see the README), and the deploy
       # below never touches it. workers_dev and preview_urls are absent too:
@@ -89,13 +97,23 @@ jobs:
       - name: Stage the page and its config
         env:
           PASSPORT_WORKER: ${{ vars.PASSPORT_WORKER || 'passport' }}
+          PASSPORT_FORMAT: ${{ vars.PASSPORT_FORMAT }}
         run: |
-          if [ ! -f passport.html ]; then
-            echo "No passport.html on main yet, so nothing to publish."
-            exit 0
+          if [ "${PASSPORT_FORMAT,,}" = "site" ]; then
+            if [ ! -f passport/index.html ]; then
+              echo "No passport/index.html on main yet, so nothing to publish."
+              exit 0
+            fi
+            mkdir -p _publish
+            cp -R passport _publish/site
+          else
+            if [ ! -f passport.html ]; then
+              echo "No passport.html on main yet, so nothing to publish."
+              exit 0
+            fi
+            mkdir -p _publish/site
+            cp passport.html _publish/site/index.html
           fi
-          mkdir -p _publish/site
-          cp passport.html _publish/site/index.html
           jq -n --arg name "$PASSPORT_WORKER" '{
             name: $name,
             compatibility_date: "2026-10-01",

@@ -361,9 +361,21 @@ jobs:
           # --output can name it anything, so match every HTML file rather
           # than just passport.html. The template ships none;
           # narrow this if it ever needs one.
-          HTML=$(git ls-files | grep -iE '\.html?$' || true)
+          #
+          # The site format writes a folder instead, and its itinerary is in
+          # data.json, which no HTML match catches. So the default folder is
+          # refused whole, and so is a data.json anywhere, for a folder named
+          # something else. The template ships neither.
+          #
+          # Selected with pathspecs, not by grepping the listing: git quotes a
+          # path with non-ASCII characters in it, so "résumé/data.json" is
+          # listed with a leading quote and slips past any anchored pattern.
+          # quotePath=false only makes the names readable in the message.
+          HTML=$(git -c core.quotePath=false ls-files -- \
+                   ':(glob,icase)**/*.html' ':(glob,icase)**/*.htm' \
+                   ':(glob,icase)passport/**' ':(glob,icase)**/data.json')
           if [ -n "$HTML" ]; then
-            echo "An HTML file is committed in the public template:"
+            echo "Passport output, or something that may be, is committed in the public template:"
             echo "$HTML"
             echo "contrail passport output embeds someone's itinerary. It belongs"
             echo "only in a private repo created from this one."
@@ -375,11 +387,15 @@ jobs:
       # one commit and removed in the next passes it while staying in the
       # history of a public repo forever. For this data class that is not
       # caught, so look at every commit. Needs fetch-depth: 0 above.
+      #
+      # Pathspecs rather than a grep, and --no-renames, for the reasons the
+      # Passport history check below gives.
       - name: No export may ever have been committed here
         run: |
-          LEAKED=$(git log --all --diff-filter=A --name-only --format= \
-                     -- 'flighty/*' 'openflights/*' \
-                   | grep -i '\.csv$' | sort -u || true)
+          LEAKED=$(git -c core.quotePath=false log --all --no-renames --diff-filter=A \
+                     --name-only --format= -- \
+                     ':(glob,icase)flighty/**/*.csv' ':(glob,icase)openflights/**/*.csv' \
+                   | sort -u)
           if [ -n "$LEAKED" ]; then
             echo "An export exists in this repository's history:"
             echo "$LEAKED"
@@ -392,13 +408,17 @@ jobs:
           echo "no export in any commit"
 
       # Same reasoning for Passport: a page committed and then deleted is still
-      # public. Any name, like the tree check above.
+      # public. Any name, and the site folder's data too, selected the same way
+      # as the tree check above. --no-renames because a file that arrives by
+      # renaming another is otherwise an R, which --diff-filter=A skips.
       - name: No Passport may ever have been committed here
         run: |
-          LEAKED=$(git log --all --diff-filter=A --name-only --format= \
-                   | grep -iE '\.html?$' | sort -u || true)
+          LEAKED=$(git -c core.quotePath=false log --all --no-renames --diff-filter=A \
+                     --name-only --format= -- \
+                     ':(glob,icase)**/*.html' ':(glob,icase)**/*.htm' \
+                     ':(glob,icase)passport/**' ':(glob,icase)**/data.json' | sort -u)
           if [ -n "$LEAKED" ]; then
-            echo "An HTML file exists in this repository's history:"
+            echo "Passport output, or something that may be, exists in this repository's history:"
             echo "$LEAKED"
             echo
             echo "If it is contrail passport output, deleting it in a later commit"
@@ -406,7 +426,7 @@ jobs:
             echo "should assume the itinerary is disclosed."
             exit 1
           fi
-          echo "no HTML in any commit"
+          echo "no HTML or Passport data in any commit"
 
   # Defined in markdown.yml and called from check-instance.yml too, so the
   # template and every repo created from it check their docs the same way.

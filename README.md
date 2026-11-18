@@ -118,7 +118,8 @@ Also `last_checked.txt`, a timestamp touched on every run. It exists to guarante
 activity: GitHub disables scheduled workflows after 60 days of inactivity, and a quiet stretch of
 travel could easily mean no new flights to commit for that long.
 
-And `passport.html`, the same log as an interactive dashboard; see [Passport](#passport) below.
+And `passport.html`, the same log as an interactive dashboard, or a `passport/` folder if you
+publish it as a site; see [Passport](#passport) below.
 
 Full column reference is in [contrail's README](https://github.com/atdr/contrail#csv-columns).
 
@@ -140,7 +141,7 @@ request too, without writing it, so a contrail upgrade that breaks the Passport 
 
 It holds the same itinerary as the CSV, which is one more reason your repo must stay private.
 `atdr/contrail-gh` is public and never carries one: there, `check-template.yml` fails if any HTML
-file is ever committed.
+file, a `passport/` folder or a `data.json` is ever committed.
 
 To build one yourself, from a clone of your repo:
 
@@ -236,11 +237,47 @@ that last, in this order:
    gh workflow run publish-passport.yml -R octocat/my-contrail
    ```
 
-From then on it redeploys after every sync and whenever you merge a change to `passport.html`.
+From then on it redeploys after every sync and whenever you merge a change to the Passport.
 Before the token expires, roll it and set the secret again. To switch publishing off, delete
 `PASSPORT_HOSTNAME`; the page stays up until you delete the Worker too.
 
 `atdr/contrail-gh` itself never sets the variable: it is public and has no Passport to publish.
+
+#### Publishing as a site folder
+
+Optional, and only worth it once the Passport is published. By default a sync writes one
+self-contained `passport.html`, about 800 KB, and every change replaces all of it. contrail's site
+format writes the same page as a `passport/` folder instead: `index.html`, `data.json` holding your
+itinerary, and the scripts, styles and map under `assets/`. A browser caches the assets, so a
+visit after a sync downloads only the data that moved.
+
+The cost is that a site can't be opened from disk: the page fetches `data.json`, which browsers
+refuse for a local file. To look at it without publishing, serve the folder from a clone with
+`python3 -m http.server --bind 127.0.0.1 -d passport`.
+
+The workflows support both formats, chosen by one repository variable, so nothing in
+`.github/workflows/` needs editing and template updates keep pulling cleanly:
+
+1. **Set the format.**
+
+   ```bash
+   gh variable set PASSPORT_FORMAT -R octocat/my-contrail --body site
+   ```
+
+   `sync.yml` builds `passport/` and commits it, `publish-passport.yml` deploys the folder to the
+   same Worker, and `check-instance.yml` builds a site on every pull request. The Worker serves
+   the folder from the same origin, which is all the page's Content-Security-Policy allows, and
+   Access guards every file in it, `data.json` included.
+
+2. **Run the sync once by hand**, so the folder exists before the next deploy:
+   `gh workflow run sync.yml -R octocat/my-contrail`. Until it lands, the deploy finds no
+   `passport/index.html` and leaves the page already live in place.
+
+3. **Delete the old page** in a pull request: `git rm passport.html`. Nothing writes it any more,
+   so left behind it would sit in your repo going stale.
+
+The workflows read the default folder name only, so leave `PASSPORT_OUTPUT` unset. To go back,
+delete the variable, run the sync, and `git rm -r passport/`.
 
 ## Changed and cancelled flights
 
@@ -388,8 +425,8 @@ The files fall into three groups:
   of yours, but you may have edited your README, so they are left out of the command. Diff them
   with `git diff template/main -- README.md AGENTS.md .claude/` and take what you want.
 - **Yours, never pulled:** `flight_emissions.csv`, `flight_emissions.raw.jsonl`, `passport.html`
-  and any exports in `flighty/` or `openflights/`. The template has a header-only CSV and none of
-  the rest.
+  or `passport/`, and any exports in `flighty/` or `openflights/`. The template has a header-only
+  CSV and none of the rest.
   `last_checked.txt` is regenerated every run and can be ignored either way.
 
 `flighty/` and `openflights/` are the two directories holding both: each

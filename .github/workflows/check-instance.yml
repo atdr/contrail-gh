@@ -68,13 +68,24 @@ jobs:
       # breaks it should fail here rather than in the next scheduled run.
       # Written to $RUNNER_TEMP and never uploaded: this only proves it builds.
       # Skipped on a header-only log, which contrail refuses and sync.yml skips.
+      # Built in the format sync.yml builds, so a release that breaks only the
+      # site folder fails here too. GitHub's documentation does not say whether
+      # a Dependabot pull request can read repository variables. If it cannot,
+      # this builds the standalone page, which still proves the release renders.
       - name: Build the Passport
+        env:
+          PASSPORT_FORMAT: ${{ vars.PASSPORT_FORMAT }}
         run: |
           if [ "$(wc -l < flight_emissions.csv)" -le 1 ]; then
             echo "No flights in the log yet, so there is no Passport to check."
             exit 0
           fi
-          contrail passport --csv-path flight_emissions.csv --output "$RUNNER_TEMP/passport.html"
+          if [ "${PASSPORT_FORMAT,,}" = "site" ]; then
+            OUT="$RUNNER_TEMP/passport/"
+          else
+            OUT="$RUNNER_TEMP/passport.html"
+          fi
+          contrail passport --csv-path flight_emissions.csv --output "$OUT"
 
       - name: Neither step may have written anything
         # --dry-run promises this, and it is the property that makes running the

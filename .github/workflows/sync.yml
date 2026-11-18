@@ -58,9 +58,16 @@ jobs:
       # cost this sync's data, so it is recorded rather than raised: the commit
       # still runs, and the last step turns the run red afterwards. Any other
       # failure is the sync's own and stops the job here, as before.
+      #
+      # PASSPORT_FORMAT is a repository variable, unset by default, which
+      # builds the standalone passport.html. Set it to "site" to build a
+      # passport/ folder instead (index.html, data.json and assets/), which
+      # suits a published copy; the README's "Publishing as a site folder"
+      # says when it is worth it.
       - name: Sync
         id: sync
         env:
+          PASSPORT_FORMAT: ${{ vars.PASSPORT_FORMAT }}
           TRIPIT_ICAL_URL: ${{ secrets.TRIPIT_ICAL_URL }}
           TIM_API_KEY: ${{ secrets.TIM_API_KEY }}
           # Flighty exports committed to flighty/, if you keep any. An empty or
@@ -89,6 +96,14 @@ jobs:
         # commits for that long, so always touch a timestamp file.
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > last_checked.txt
 
+      # git status reports a new untracked folder as one entry, passport/,
+      # and ghcommit-action would hand that to the API as if it were a file.
+      # Listing untracked files one by one makes a site's first commit carry
+      # its index.html, data.json and every asset. Set in the repo's own
+      # config, which the action reads from the checkout.
+      - name: List new Passport files one by one
+        run: git config status.showUntrackedFiles all
+
       - name: Commit changes
         # ghcommit-action goes through the same GraphQL API GitHub's own UI
         # uses to commit, so the result is signed and shows as Verified — a
@@ -97,15 +112,18 @@ jobs:
         # its "." default, so a repo with stray local changes never commits
         # them by accident.
         #
-        # flight_emissions.raw.jsonl and passport.html may not exist yet on a
-        # repo's first syncs. That is fine: the action finds changes with
+        # flight_emissions.raw.jsonl and the Passport may not exist yet on a
+        # repo's first syncs, and only one of passport.html and passport/
+        # exists at a time. That is fine: the action finds changes with
         # `git status -- <file_pattern>`, which ignores a path that isn't there.
+        # It also stages deletions, which a site makes when a newer contrail
+        # stops shipping an asset.
         uses: planetscale/ghcommit-action@v0.2.22
         with:
           commit_message: "Sync flight emissions"
           repo: ${{ github.repository }}
           branch: ${{ github.ref_name }}
-          file_pattern: "flight_emissions.csv last_checked.txt flight_emissions.raw.jsonl passport.html"
+          file_pattern: "flight_emissions.csv last_checked.txt flight_emissions.raw.jsonl passport.html passport/"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
