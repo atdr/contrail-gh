@@ -43,7 +43,7 @@ confidently wrong destroys data, prefer the detector that fails loudly.
 | `flight_emissions.raw.jsonl` | must not exist                    | present once a sync has run              |
 | `flighty/`                   | empty of CSVs                     | the owner's exports, committed by hand   |
 | `openflights/`               | empty of CSVs                     | the owner's backup, committed by hand    |
-| `passport.html`              | must not exist                    | committed by the sync, like the CSV      |
+| `passport.html`, `passport/` | must not exist                    | committed by the sync, like the CSV      |
 | Actions secrets              | none                              | `TRIPIT_ICAL_URL`, `TIM_API_KEY`         |
 | Passport publishing          | never: no `PASSPORT_HOSTNAME`     | optional, off until the owner sets it    |
 | Purpose                      | the thing people copy             | someone's actual travel record           |
@@ -67,10 +67,13 @@ departed, and the calendar feed only carries recent trips.
 
 - Editing a row by hand is supported and expected: fill in emissions on an
   `unparsed` row, or set `cabin_class_known`, and the next sync picks it up.
-- Both files must stay committed, and so does `passport.html`. If they stop
+- Both files must stay committed, and so does the Passport: `passport.html`,
+  or `passport/` when the repository variable `PASSPORT_FORMAT` is `site`. Set
+  the format with that variable, never by editing the workflows, which a
+  template update overwrites. If they stop
   appearing in commits, check `file_pattern` in `sync.yml`. The Passport is
   derived from the CSV, so unlike the log it can always be rebuilt.
-- `passport.html` is only rewritten when its content changes. A sync that
+- The Passport is only rewritten when its content changes. A sync that
   leaves it alone is working as intended, not stuck.
 - **Never make this repo public**, and never copy its contents into a public
   one. The CSV is an itinerary; the raw log is worse; the Passport is the same
@@ -115,12 +118,13 @@ departed, and the calendar feed only carries recent trips.
 
 **`atdr/contrail-gh` must never hold flight data**, because it is public. In the
 template, and only there, `flight_emissions.csv` is the header row and nothing
-else, `flight_emissions.raw.jsonl` and `passport.html` must not exist, and
-`flighty/` and `openflights/` must hold no CSV. `check-template.yml` enforces
-all of it (the Passport as any HTML file, since `--output` can name it
-anything) and is gated to `atdr/contrail-gh` by repository name, so it does
-nothing in a repo created from the template — where every one of those files is
-the point.
+else, `flight_emissions.raw.jsonl`, `passport.html` and `passport/` must not
+exist, and `flighty/` and `openflights/` must hold no CSV. `check-template.yml`
+enforces all of it (the Passport as any HTML file, since `--output` can name it
+anything, plus the `passport/` folder and any `data.json`, which holds a site's
+itinerary and is not HTML) and is gated to `atdr/contrail-gh` by repository
+name, so it does nothing in a repo created from the template — where every one
+of those files is the point.
 
 The export directories are the sharpest of them. A Flighty export or an
 OpenFlights backup is an entire travel history in one file, and unlike the log
@@ -246,8 +250,8 @@ checked.
 **`file_pattern` in `sync.yml` must cover every file contrail writes.** The
 commit step goes through `ghcommit-action`, which commits only what that list
 names. Today: `flight_emissions.csv`, `flight_emissions.raw.jsonl`,
-`last_checked.txt`, `passport.html`. A new output that isn't listed is silently
-lost on every run.
+`last_checked.txt`, `passport.html`, and `passport/` for the site format. A new
+output that isn't listed is silently lost on every run.
 
 **`last_checked.txt` is load-bearing.** GitHub disables scheduled workflows after
 60 days of no repository activity, and a quiet stretch of travel reaches that
