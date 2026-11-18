@@ -29,6 +29,16 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
+    # Dependabot waits 3 days after a release before proposing it, even with no
+    # cooldown set, as a guard against a compromised package. contrail is
+    # exempt: its releases can carry security fixes, merging is still your
+    # step, and check-instance.yml dry-runs the bump against your data first.
+    # Everything else keeps the 3 days, stated here so the exclusion cannot
+    # quietly change it.
+    cooldown:
+      default-days: 3
+      exclude:
+        - contrails
     commit-message:
       prefix: chore
       prefix-development: chore
