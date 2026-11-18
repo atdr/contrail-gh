@@ -230,17 +230,19 @@ jobs:
       # pull request guessing which of these files to open. Keeping the name
       # equal to the filename makes that mapping mechanical; the job name is
       # where the description goes.
-      # checks.yml and pull-request.yml come from atdr/github-boilerplate and
-      # hold atdr's own conventions. A repo created from the template copies
-      # them, so every job in both must stay guarded to atdr/contrail-gh, or
-      # an instance owner's pull requests start failing on rules that were
-      # never theirs. Each file's job count and guard count must agree.
+      # checks.yml, pull-request.yml and auto-merge.yml come from
+      # atdr/github-boilerplate and hold atdr's own conventions. A repo created
+      # from the template copies them, so every job in all three must stay
+      # guarded to atdr/contrail-gh, or an instance owner's pull requests start
+      # failing on rules that were never theirs, or merging without review.
+      # Each file's job count and guard count must agree.
       - name: The boilerplate workflows must stay template-only
         run: |
           STATUS=0
-          for F in .github/workflows/checks.yml .github/workflows/pull-request.yml; do
+          for F in .github/workflows/checks.yml .github/workflows/pull-request.yml \
+            .github/workflows/auto-merge.yml; do
             if [ ! -f "$F" ]; then
-              echo "$F is missing. The ruleset requires its gate."
+              echo "$F is missing."
               STATUS=1
               continue
             fi

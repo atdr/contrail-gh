@@ -153,6 +153,7 @@ load-bearing:**
 | `pin-bump.yml`         | the template guard, plus Dependabot as author and actor | the template only     |
 | `checks.yml`           | the template guard, on every job                        | the template only     |
 | `pull-request.yml`     | the template guard, on every job                        | the template only     |
+| `auto-merge.yml`       | the template guard, on every job                        | the template only     |
 | `sync.yml`             | `if: github.repository != 'atdr/contrail-gh'`           | instances only        |
 | `check-instance.yml`   | `if: github.repository != 'atdr/contrail-gh'`           | instances only        |
 | `publish-passport.yml` | the instance guard, plus `vars.PASSPORT_HOSTNAME != ''` | instances that opt in |
@@ -178,11 +179,12 @@ with the Worker settings that keep the page private. `atdr/contrail-gh` must
 never set that variable. The setup is in the README, under "Publishing the
 Passport".
 
-`checks.yml` (atdr's conventions check) and `pull-request.yml` (conventional
-commit types for every commit and the PR title) come from
+`checks.yml` (atdr's conventions check), `pull-request.yml` (conventional
+commit types for every commit and the PR title) and `auto-merge.yml` (switches
+on auto-merge for Dependabot's patch and minor bumps) come from
 [atdr/github-boilerplate](https://github.com/atdr/github-boilerplate), pinned by
 tag. They hold atdr's rules for `atdr/contrail-gh`, not rules for your own repo,
-so every job in both carries the template guard, gate included, and
+so every job in all three carries the template guard, gate included, and
 `check-template.yml` fails if one loses it. The `main` ruleset in
 `atdr/contrail-gh` requires their two gates, `checks gate` and
 `pull-request gate`.

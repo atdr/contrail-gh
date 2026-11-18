@@ -1,0 +1,25 @@
+name: auto-merge
+
+# Dependabot's patch and minor bumps merge themselves once every required check
+# passes; majors wait for review. See atdr/github-boilerplate's STANDARDS.md.
+#
+# In atdr/contrail-gh only: a repo created from the template copies this file
+# too, and whether an instance's bumps merge unreviewed is its owner's call.
+# Like checks.yml and pull-request.yml, every job is guarded by repository
+# name, and check-template.yml fails if one loses it.
+on:
+  pull_request_target:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dependabot:
+    if: github.repository == 'atdr/contrail-gh'
+    uses: atdr/github-boilerplate/.github/workflows/dependabot-auto-merge.yml@v1.3.0
+    permissions:
+      contents: write
+      pull-requests: write
